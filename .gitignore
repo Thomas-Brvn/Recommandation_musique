@@ -1,0 +1,57 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment variables & Secrets
+.env
+.env.local
+.env.*.local
+config/.env
+config/aws_config.json
+config/ec2_instance.json
+
+# AWS Credentials (IMPORTANT - Ne jamais commiter!)
+.aws/
+*.pem
+AWS Access Key*
+
+# Airflow
+airflow.db
+airflow.db-shm
+airflow.db-wal
+airflow.cfg
+airflow-webserver.pid
+logs/
+dags/__pycache__/
+standalone_admin_password.txt
+
+# Data (ne pas versionner les données téléchargées)
+data/
+*.tar.xz
+*.tar.zst
+*.tar.gz
+*.tar
+SHA256SUMS
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+/tmp/
+*.tmp
+*.log
