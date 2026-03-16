@@ -1,8 +1,8 @@
-# 🎵 Recommandation Musique - Pipeline ListenBrainz/MusicBrainz
+# Recommandation Musique - Pipeline ListenBrainz/MusicBrainz
 
 Système de recommandation musicale basé sur les données MusicBrainz (métadonnées) et ListenBrainz (comportements d'écoute), déployé sur AWS avec Airflow.
 
-## 📋 Table des matières
+## Table des matières
 
 - [Démarrage rapide](#-démarrage-rapide)
 - [Installation](#-installation)
@@ -12,7 +12,7 @@ Système de recommandation musicale basé sur les données MusicBrainz (métadon
 - [Données](#-données)
 - [Coûts AWS](#-coûts-aws)
 
-## 🚀 Démarrage rapide
+## Démarrage rapide
 
 ### 1. Installation de l'environnement
 
@@ -44,7 +44,7 @@ nano .env
 ./quick_start.sh
 ```
 
-## 📦 Installation
+## Installation
 
 ### Prérequis
 
@@ -72,7 +72,7 @@ pip install -r requirements.txt
 aws configure
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Variables d'environnement (.env)
 
@@ -102,56 +102,56 @@ Entrez:
 
 ### Sécurité des credentials
 
-⚠️ **IMPORTANT**: Ne JAMAIS commiter vos credentials!
+ **IMPORTANT**: Ne JAMAIS commiter vos credentials!
 
 - Les fichiers `.env`, `config/aws_config.json` sont dans `.gitignore`
 - Utilisez `.env.example` comme template (sans vraies valeurs)
 - Les clés AWS doivent rester secrètes
 
-## 📁 Structure du projet
+## Structure du projet
 
 ```
 Recommandation_musique/
-├── .env                           # Credentials (NON VERSIONNÉ)
-├── .env.example                   # Template de configuration
-├── .gitignore                     # Fichiers à ignorer
-├── README.md                      # Ce fichier
-├── requirements.txt               # Dépendances Python
-│
-├── venv/                          # Environnement virtuel (NON VERSIONNÉ)
-│
-├── config/                        # Configuration
-│   ├── .env                       # Credentials locaux (NON VERSIONNÉ)
-│   ├── aws_config.json            # Config AWS (NON VERSIONNÉ)
-│   ├── ec2_instance.json          # Instance EC2 active (NON VERSIONNÉ)
-│   └── load_env.py                # Utilitaire pour charger .env
-│
-├── scripts/                       # Scripts de téléchargement AWS
-│   ├── download_to_s3_via_ec2.py # Lance EC2 pour télécharger vers S3
-│   ├── download_missing_files.py # Télécharge fichiers manquants
-│   ├── monitor_ec2_download.py   # Surveille le téléchargement EC2
-│   ├── setup_aws_s3.py           # Configuration S3
-│   └── upload_to_s3.py           # Upload manuel vers S3
-│
-├── dags/                          # DAGs Airflow (pour plus tard)
-│   └── listenbrainz_pipeline.py  # Pipeline de traitement
-│
-├── data/                          # Données locales (NON VERSIONNÉ)
-│   └── raw/                       # Données brutes
-│       ├── musicbrainz/           # Dumps MusicBrainz
-│       └── listenbrainz/          # Dumps ListenBrainz
-│
-├── docs/                          # Documentation
-│   ├── GUIDE_AWS.md              # Guide AWS détaillé
-│   └── GUIDE_EC2.md              # Guide EC2
-│
-├── logs/                          # Logs Airflow (NON VERSIONNÉ)
-├── plugins/                       # Plugins Airflow
-│
-└── quick_start.sh                 # Menu interactif
+ .env                           # Credentials (NON VERSIONNÉ)
+ .env.example                   # Template de configuration
+ .gitignore                     # Fichiers à ignorer
+ README.md                      # Ce fichier
+ requirements.txt               # Dépendances Python
+
+ venv/                          # Environnement virtuel (NON VERSIONNÉ)
+
+ config/                        # Configuration
+    .env                       # Credentials locaux (NON VERSIONNÉ)
+    aws_config.json            # Config AWS (NON VERSIONNÉ)
+    ec2_instance.json          # Instance EC2 active (NON VERSIONNÉ)
+    load_env.py                # Utilitaire pour charger .env
+
+ scripts/                       # Scripts de téléchargement AWS
+    download_to_s3_via_ec2.py # Lance EC2 pour télécharger vers S3
+    download_missing_files.py # Télécharge fichiers manquants
+    monitor_ec2_download.py   # Surveille le téléchargement EC2
+    setup_aws_s3.py           # Configuration S3
+    upload_to_s3.py           # Upload manuel vers S3
+
+ dags/                          # DAGs Airflow (pour plus tard)
+    listenbrainz_pipeline.py  # Pipeline de traitement
+
+ data/                          # Données locales (NON VERSIONNÉ)
+    raw/                       # Données brutes
+        musicbrainz/           # Dumps MusicBrainz
+        listenbrainz/          # Dumps ListenBrainz
+
+ docs/                          # Documentation
+    GUIDE_AWS.md              # Guide AWS détaillé
+    GUIDE_EC2.md              # Guide EC2
+
+ logs/                          # Logs Airflow (NON VERSIONNÉ)
+ plugins/                       # Plugins Airflow
+
+ quick_start.sh                 # Menu interactif
 ```
 
-## 🎯 Utilisation
+## Utilisation
 
 ### Téléchargement des données
 
@@ -181,7 +181,7 @@ aws s3 ls s3://listen-brainz-data/raw/ --recursive --region eu-north-1 --human-r
 aws ec2 get-console-output --instance-id i-xxxxx --region eu-north-1
 ```
 
-#### ⚠️ Important: Terminer l'instance après téléchargement
+#### Important: Terminer l'instance après téléchargement
 
 ```bash
 aws ec2 terminate-instances --instance-ids i-xxxxx --region eu-north-1
@@ -200,7 +200,7 @@ aws ec2 terminate-instances --instance-ids i-xxxxx --region eu-north-1
 # Login: admin / Password: admin
 ```
 
-## 📊 Données
+## Données
 
 ### MusicBrainz (~20.8 GB compressé)
 
@@ -225,14 +225,14 @@ Source: https://data.metabrainz.org/pub/musicbrainz/listenbrainz/fullexport/
 
 ```
 Artist (The Beatles)
-  └── Release-Group (Abbey Road)
-        └── Release (Abbey Road 1969 UK Vinyl)
-              └── Recording (Come Together)
+   Release-Group (Abbey Road)
+         Release (Abbey Road 1969 UK Vinyl)
+               Recording (Come Together)
 ```
 
 ListenBrainz → Recording → Artist/Release
 
-## 💰 Coûts AWS
+## Coûts AWS
 
 ### Téléchargement via EC2
 
@@ -249,11 +249,11 @@ ListenBrainz → Recording → Artist/Release
 
 ### Réduire les coûts
 
-- Supprimer l'instance EC2 après téléchargement ✅
+- Supprimer l'instance EC2 après téléchargement 
 - Utiliser S3 Intelligent-Tiering
 - Archiver vers S3 Glacier après traitement
 
-## 🔧 Commandes utiles
+## Commandes utiles
 
 ### AWS S3
 
@@ -291,22 +291,22 @@ python3 config/load_env.py
 deactivate
 ```
 
-## 📚 Documentation
+## Documentation
 
 - [GUIDE_AWS.md](docs/GUIDE_AWS.md) - Configuration AWS détaillée
 - [GUIDE_EC2.md](docs/GUIDE_EC2.md) - Utilisation EC2
 - [MusicBrainz Database Schema](https://musicbrainz.org/doc/MusicBrainz_Database)
 - [ListenBrainz API](https://listenbrainz.readthedocs.io/)
 
-## 🤝 Contribution
+## Contribution
 
 Ce projet est un travail personnel. Pour toute question, ouvrez une issue.
 
-## 📄 Licence
+## Licence
 
 MIT License - Voir LICENSE pour plus de détails.
 
-## ⚠️ Notes importantes
+## Notes importantes
 
 - **Sécurité**: Ne jamais commiter de credentials AWS
 - **Coûts**: Toujours terminer les instances EC2 après usage
