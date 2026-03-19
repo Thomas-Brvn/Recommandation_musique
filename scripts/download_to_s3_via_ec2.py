@@ -144,14 +144,14 @@ done
 """
 
     if download_lb:
-        script += """
+        script += r"""
 echo "=========================================="
 echo "Téléchargement ListenBrainz"
 echo "=========================================="
 
 # Trouver le dernier dump
 echo "Recherche du dernier dump ListenBrainz..."
-LB_LATEST_DIR=$(curl -s "$LB_BASE_URL" | grep -o 'href="listenbrainz-dump-[0-9]*-[0-9]*-full/"' | tail -1 | cut -d'"' -f2)
+LB_LATEST_DIR=$(curl -s "$LB_BASE_URL" | grep -o 'href="listenbrainz-dump-[0-9]*-[0-9]*-[0-9]*-full/"' | tail -1 | cut -d'"' -f2)
 
 if [ -z "$LB_LATEST_DIR" ]; then
     echo "✗ Aucun dump trouvé"

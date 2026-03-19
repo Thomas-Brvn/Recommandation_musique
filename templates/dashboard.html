@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Rec – Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0f1117; }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .badge-green  { background: #0f2f1b; color: #3fb950; border: 1px solid #238636; }
+    .badge-yellow { background: #2b2208; color: #d29922; border: 1px solid #9e6a03; }
+    .badge-red    { background: #2d0f0f; color: #f85149; border: 1px solid #6e1c1c; }
+    .badge-gray   { background: #1c1c24; color: #8b949e; border: 1px solid #30363d; }
+    .badge-blue   { background: #0d1b2e; color: #58a6ff; border: 1px solid #1f4b8e; }
+
+    #terminal {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      padding: 12px;
+      height: 340px;
+      overflow-y: auto;
+      color: #7ee787;
+    }
+    #terminal .t-warn  { color: #d29922; }
+    #terminal .t-error { color: #f85149; }
+    #terminal .t-info  { color: #58a6ff; }
+    #terminal .t-done  { color: #3fb950; font-weight: bold; }
+    #terminal .t-start { color: #e3b341; font-weight: bold; }
+
+    .stat-label { color: #8b949e; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { color: #f0f6fc; font-size: 1.5rem; font-weight: 700; }
+    .stat-sub   { color: #8b949e; font-size: 0.78rem; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 6px; font-size: 0.82rem;
+      font-weight: 600; cursor: pointer; transition: opacity .15s;
+      border: none; outline: none;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-green  { background: #238636; color: #fff; }
+    .btn-blue   { background: #1f6feb; color: #fff; }
+    .btn-yellow { background: #9e6a03; color: #fff; }
+    .btn-red    { background: #6e1c1c; color: #f85149; border: 1px solid #6e1c1c; }
+    .btn-gray   { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+
+    .progress-bar {
+      height: 4px; background: #21262d; border-radius: 2px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, #238636, #3fb950);
+      transition: width .3s;
+    }
+
+    .s3-row { display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 0; border-bottom: 1px solid #21262d; }
+    .s3-row:last-child { border-bottom: none; }
+
+    .ec2-row { display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 10px; background: #0d1117; border-radius: 6px; margin-bottom: 6px; }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-green  { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+    .dot-yellow { background: #d29922; box-shadow: 0 0 6px #d29922; }
+    .dot-red    { background: #f85149; }
+    .dot-gray   { background: #484f58; }
+
+    #log-badge {
+      display: none;
+      background: #6e1c1c; color: #f85149;
+      border-radius: 10px; padding: 1px 6px; font-size: .68rem;
+    }
+
+    .section-title {
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #8b949e; font-weight: 600; margin-bottom: 10px;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  </style>
+</head>
+<body class="text-gray-200 min-h-screen p-4">
+
+  <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <div class="flex items-center justify-between mb-5">
+    <div class="flex items-center gap-3">
+      <span class="text-xl">🎵</span>
+      <h1 class="text-base font-bold text-white">Music Recommendation</h1>
+      <span class="badge badge-gray text-xs">Dashboard</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="ws-indicator" class="dot dot-gray" title="WebSocket"></span>
+      <span id="last-refresh" class="text-xs text-gray-500">—</span>
+      <button onclick="loadStatus()" class="btn btn-gray text-xs">
+        ↻ Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Status cards row ───────────────────────────────────────────── -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+
+    <!-- S3 card -->
+    <div class="card">
+      <div class="section-title">S3 Données</div>
+      <div id="s3-cards" class="space-y-2">
+        <div class="s3-row"><span class="text-gray-500 text-xs">Chargement…</span></div>
+      </div>
+    </div>
+
+    <!-- Model card -->
+    <div class="card">
+      <div class="section-title">Modèle ALS</div>
+      <div id="model-card">
+        <div class="text-gray-500 text-xs">Chargement…</div>
+      </div>
+    </div>
+
+    <!-- Pipeline card -->
+    <div class="card">
+      <div class="section-title">Pipeline</div>
+      <div id="pipeline-status-card">
+        <div class="text-gray-500 text-xs">Chargement…</div>
+      </div>
+    </div>
+
+    <!-- EC2 card -->
+    <div class="card">
+      <div class="section-title">Instances EC2</div>
+      <div id="ec2-summary">
+        <div class="text-gray-500 text-xs">Chargement…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Main content: EC2 instances + Pipeline controls ────────────── -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+
+    <!-- EC2 instances list -->
+    <div class="card">
+      <div class="section-title">Instances EC2 actives</div>
+      <div id="ec2-list">
+        <div class="text-gray-500 text-xs">Aucune instance</div>
+      </div>
+    </div>
+
+    <!-- Pipeline controls -->
+    <div class="card">
+      <div class="section-title">Lancer un pipeline</div>
+
+      <div class="space-y-3">
+        <div class="p-3 rounded-md" style="background:#0d1117; border:1px solid #30363d;">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold text-white mb-1">Pipeline complet</div>
+              <div class="text-xs text-gray-500">Lance une instance EC2, télécharge + traite les données, entraîne le modèle ALS, upload sur S3. Durée: ~2-4h • Coût: ~0.40€</div>
+            </div>
+            <button id="btn-full" onclick="launchPipeline('full')" class="btn btn-green whitespace-nowrap">
+              ▶ Lancer
+            </button>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-md" style="background:#0d1117; border:1px solid #30363d;">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold text-white mb-1">Téléchargement uniquement</div>
+              <div class="text-xs text-gray-500">Télécharge MusicBrainz + ListenBrainz vers S3 via EC2. Durée: ~2-4h • Coût: ~0.20€</div>
+            </div>
+            <button id="btn-download" onclick="launchPipeline('download')" class="btn btn-blue whitespace-nowrap">
+              ↓ Télécharger
+            </button>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-md" style="background:#0d1117; border:1px solid #30363d;">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold text-white mb-1">Vérifier le statut</div>
+              <div class="text-xs text-gray-500">Vérifie si le pipeline précédent est terminé sur S3.</div>
+            </div>
+            <button onclick="launchPipeline('status')" class="btn btn-yellow whitespace-nowrap">
+              ⚡ Statut
+            </button>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-1">
+          <button id="btn-stop" onclick="stopPipeline()" class="btn btn-red flex-1" disabled>
+            ■ Arrêter processus local
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Terminal ───────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center gap-2">
+        <div class="section-title mb-0">Logs en temps réel</div>
+        <span id="log-badge">!</span>
+      </div>
+      <div class="flex gap-2">
+        <span id="pipeline-indicator" class="text-xs text-gray-500">—</span>
+        <button onclick="clearTerminal()" class="btn btn-gray" style="padding:3px 10px; font-size:.72rem;">
+          Effacer
+        </button>
+      </div>
+    </div>
+    <div id="terminal"><span class="t-info">Connexion WebSocket...</span></div>
+  </div>
+
+  <!-- ── EC2 logs modal ─────────────────────────────────────────────── -->
+  <div id="logs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.7)">
+    <div class="card w-full max-w-3xl" style="max-height:80vh; display:flex; flex-direction:column;">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="font-semibold text-white text-sm" id="modal-title">Console EC2</div>
+          <div class="text-xs text-gray-500" id="modal-subtitle"></div>
+        </div>
+        <button onclick="closeModal()" class="btn btn-gray" style="padding:4px 12px;">✕</button>
+      </div>
+      <div id="modal-logs" style="
+        flex:1; overflow-y:auto; background:#0d1117; border:1px solid #30363d;
+        border-radius:6px; padding:12px; font-family:monospace; font-size:.75rem;
+        color:#7ee787; white-space:pre-wrap; min-height:300px;">
+        Chargement…
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button id="modal-refresh-btn" class="btn btn-gray text-xs">↻ Rafraîchir</button>
+        <button id="modal-terminate-btn" class="btn btn-red text-xs">Terminer l'instance</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const API = '';
+let ws = null;
+let currentInstanceId = null;
+let autoScrollLogs = true;
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/logs`);
+
+  ws.onopen = () => {
+    document.getElementById('ws-indicator').className = 'dot dot-green';
+    ping();
+  };
+
+  ws.onclose = () => {
+    document.getElementById('ws-indicator').className = 'dot dot-red';
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => {
+    document.getElementById('ws-indicator').className = 'dot dot-yellow';
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'pong') return;
+    appendLog(msg);
+    if (msg.type === 'done') {
+      setTimeout(loadStatus, 1000);
+      updatePipelineIndicator(false);
+    }
+    if (msg.type === 'start') {
+      updatePipelineIndicator(true);
+    }
+  };
+}
+
+function ping() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send('ping');
+    setTimeout(ping, 25000);
+  }
+}
+
+// ── Terminal ─────────────────────────────────────────────────────────────────
+function appendLog(msg) {
+  const t = document.getElementById('terminal');
+  const line = document.createElement('div');
+  const text = msg.text || '';
+
+  if (msg.type === 'warn')  line.className = 't-warn';
+  else if (msg.type === 'error') line.className = 't-error';
+  else if (msg.type === 'info')  line.className = 't-info';
+  else if (msg.type === 'done')  line.className = 't-done';
+  else if (msg.type === 'start') line.className = 't-start';
+
+  line.textContent = text;
+  t.appendChild(line);
+
+  if (autoScrollLogs) t.scrollTop = t.scrollHeight;
+}
+
+function clearTerminal() {
+  document.getElementById('terminal').innerHTML = '';
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const data = await fetch(`${API}/api/status`).then(r => r.json());
+    renderS3(data.s3);
+    renderModel(data.model);
+    renderPipelineCard(data);
+    renderEC2Summary(data.ec2);
+    renderEC2List(data.ec2);
+    updatePipelineIndicator(data.pipeline_running);
+
+    document.getElementById('last-refresh').textContent =
+      new Date().toLocaleTimeString('fr-FR');
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderS3(s3) {
+  const labels = {
+    musicbrainz:  { label: 'MusicBrainz', icon: '🎸' },
+    listenbrainz: { label: 'ListenBrainz', icon: '👂' },
+    processed:    { label: 'Processed', icon: '⚙️' },
+    models:       { label: 'Modèles', icon: '🤖' },
+  };
+  const el = document.getElementById('s3-cards');
+  if (!s3 || Object.keys(s3).length === 0) {
+    el.innerHTML = '<div class="text-red-400 text-xs">S3 non accessible</div>';
+    return;
+  }
+  el.innerHTML = Object.entries(labels).map(([key, meta]) => {
+    const d = s3[key] || { count: 0, size_gb: 0 };
+    const hasData = d.count > 0;
+    return `
+      <div class="s3-row">
+        <div class="flex items-center gap-2">
+          <span>${meta.icon}</span>
+          <span class="text-xs ${hasData ? 'text-gray-300' : 'text-gray-600'}">${meta.label}</span>
+        </div>
+        <div class="text-right">
+          <span class="text-xs font-mono ${hasData ? 'text-green-400' : 'text-gray-600'}">
+            ${d.size_gb > 0 ? d.size_gb + ' GB' : '—'}
+          </span>
+          <span class="text-gray-600 text-xs ml-1">(${d.count})</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderModel(model) {
+  const el = document.getElementById('model-card');
+  if (!model || !model.trained) {
+    el.innerHTML = `
+      <div class="flex items-center gap-2 mb-2">
+        <span class="badge badge-gray">Non entraîné</span>
+      </div>
+      <div class="text-xs text-gray-600">Lancer le pipeline complet pour entraîner le modèle ALS.</div>`;
+    return;
+  }
+  const m = model.metrics || {};
+  el.innerHTML = `
+    <div class="flex items-center gap-2 mb-3">
+      <span class="badge badge-green">Entraîné ✓</span>
+    </div>
+    ${m.precision_at_10 !== undefined ? `
+    <div class="grid grid-cols-2 gap-2 text-center">
+      <div>
+        <div class="stat-value text-green-400">${(m.precision_at_10 * 100).toFixed(1)}%</div>
+        <div class="stat-label">Precision@10</div>
+      </div>
+      <div>
+        <div class="stat-value text-blue-400">${(m.recall_at_10 * 100).toFixed(1)}%</div>
+        <div class="stat-label">Recall@10</div>
+      </div>
+    </div>
+    ${m.n_users ? `<div class="mt-2 text-xs text-gray-500">${m.n_users?.toLocaleString()} users · ${m.n_items?.toLocaleString()} tracks</div>` : ''}
+    ` : '<div class="text-xs text-gray-500">Métriques non disponibles</div>'}`;
+}
+
+function renderPipelineCard(data) {
+  const el = document.getElementById('pipeline-status-card');
+  const running = data.pipeline_running;
+  const completed = data.pipeline_completed;
+
+  let badge, desc;
+  if (running) {
+    badge = '<span class="badge badge-yellow">⚡ En cours</span>';
+    desc = 'Un pipeline tourne localement.';
+  } else if (completed) {
+    badge = '<span class="badge badge-green">Terminé ✓</span>';
+    desc = 'Pipeline complet terminé avec succès.';
+  } else {
+    badge = '<span class="badge badge-gray">Inactif</span>';
+    desc = 'Aucun pipeline récent détecté.';
+  }
+
+  el.innerHTML = `
+    <div class="mb-2">${badge}</div>
+    <div class="text-xs text-gray-500">${desc}</div>`;
+
+  // Update button states
+  document.getElementById('btn-full').disabled = running;
+  document.getElementById('btn-download').disabled = running;
+  document.getElementById('btn-stop').disabled = !running;
+}
+
+function renderEC2Summary(instances) {
+  const el = document.getElementById('ec2-summary');
+  const running = instances.filter(i => i.state === 'running').length;
+  const total = instances.length;
+
+  if (total === 0) {
+    el.innerHTML = `
+      <div class="stat-value text-gray-600">0</div>
+      <div class="stat-label">instances actives</div>`;
+    return;
+  }
+
+  const dotClass = running > 0 ? 'dot-green' : 'dot-gray';
+  el.innerHTML = `
+    <div class="flex items-center gap-2 mb-1">
+      <span class="dot ${dotClass}"></span>
+      <span class="stat-value">${total}</span>
+    </div>
+    <div class="stat-label">${running} running · ${total - running} stopped</div>`;
+}
+
+function renderEC2List(instances) {
+  const el = document.getElementById('ec2-list');
+  if (!instances || instances.length === 0) {
+    el.innerHTML = '<div class="text-xs text-gray-600">Aucune instance EC2 avec tag Project=MusicRecommendation</div>';
+    return;
+  }
+
+  el.innerHTML = instances.map(inst => {
+    const stateColor = {
+      running: 'dot-green', pending: 'dot-yellow',
+      stopping: 'dot-yellow', stopped: 'dot-gray',
+    }[inst.state] || 'dot-gray';
+
+    const launch = new Date(inst.launch_time);
+    const elapsed = Math.round((Date.now() - launch) / 60000);
+    const elapsedStr = elapsed < 60
+      ? `${elapsed}m`
+      : `${Math.floor(elapsed / 60)}h${elapsed % 60}m`;
+
+    return `
+      <div class="ec2-row">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="dot ${stateColor}"></span>
+          <div class="min-w-0">
+            <div class="text-xs font-semibold text-white truncate">${inst.name}</div>
+            <div class="text-xs text-gray-500">${inst.id} · ${inst.type} · ${elapsedStr}</div>
+          </div>
+        </div>
+        <div class="flex gap-2 ml-2 flex-shrink-0">
+          <button onclick="showEC2Logs('${inst.id}', '${inst.name}')"
+            class="btn btn-gray" style="padding:3px 10px; font-size:.72rem;">Logs</button>
+          <button onclick="terminateEC2('${inst.id}')"
+            class="btn btn-red" style="padding:3px 8px; font-size:.72rem;">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function updatePipelineIndicator(running) {
+  const el = document.getElementById('pipeline-indicator');
+  if (running) {
+    el.textContent = '⚡ Pipeline actif';
+    el.className = 'text-xs text-yellow-400';
+  } else {
+    el.textContent = 'En attente';
+    el.className = 'text-xs text-gray-500';
+  }
+}
+
+// ── Pipeline actions ──────────────────────────────────────────────────────────
+async function launchPipeline(action) {
+  const labels = { full: 'pipeline complet', download: 'téléchargement', status: 'vérification statut' };
+  clearTerminal();
+  appendLog({ type: 'start', text: `Lancement ${labels[action] || action}...` });
+
+  try {
+    const r = await fetch(`${API}/api/pipeline/launch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    }).then(r => r.json());
+
+    if (r.error) {
+      appendLog({ type: 'error', text: `Erreur: ${r.error}` });
+    } else {
+      appendLog({ type: 'info', text: `PID: ${r.pid} — Les logs apparaissent ci-dessous...` });
+      setTimeout(loadStatus, 500);
+    }
+  } catch (e) {
+    appendLog({ type: 'error', text: `Erreur réseau: ${e}` });
+  }
+}
+
+async function stopPipeline() {
+  const r = await fetch(`${API}/api/pipeline/stop`, { method: 'POST' }).then(r => r.json());
+  if (r.error) appendLog({ type: 'error', text: r.error });
+  setTimeout(loadStatus, 500);
+}
+
+// ── EC2 modal ─────────────────────────────────────────────────────────────────
+async function showEC2Logs(instanceId, name) {
+  currentInstanceId = instanceId;
+  document.getElementById('modal-title').textContent = `Console EC2 — ${name}`;
+  document.getElementById('modal-subtitle').textContent = instanceId;
+  document.getElementById('logs-modal').classList.remove('hidden');
+  document.getElementById('modal-refresh-btn').onclick = () => fetchEC2Logs(instanceId);
+  document.getElementById('modal-terminate-btn').onclick = () => terminateEC2(instanceId);
+  await fetchEC2Logs(instanceId);
+}
+
+async function fetchEC2Logs(instanceId) {
+  document.getElementById('modal-logs').textContent = 'Chargement des logs EC2...';
+  try {
+    const r = await fetch(`${API}/api/ec2/logs/${instanceId}`).then(r => r.json());
+    if (r.error) {
+      document.getElementById('modal-logs').textContent = `Erreur: ${r.error}`;
+    } else {
+      document.getElementById('modal-logs').textContent = r.logs || 'Pas encore de logs...';
+      // Scroll to bottom
+      const el = document.getElementById('modal-logs');
+      el.scrollTop = el.scrollHeight;
+    }
+  } catch (e) {
+    document.getElementById('modal-logs').textContent = `Erreur réseau: ${e}`;
+  }
+}
+
+async function terminateEC2(instanceId) {
+  if (!confirm(`Terminer l'instance ${instanceId} ?`)) return;
+  closeModal();
+  const r = await fetch(`${API}/api/ec2/terminate/${instanceId}`, { method: 'POST' }).then(r => r.json());
+  if (r.error) {
+    appendLog({ type: 'error', text: `Erreur termination: ${r.error}` });
+  } else {
+    appendLog({ type: 'warn', text: `Instance ${instanceId} terminée.` });
+    setTimeout(loadStatus, 2000);
+  }
+}
+
+function closeModal() {
+  document.getElementById('logs-modal').classList.add('hidden');
+  currentInstanceId = null;
+}
+
+// Close modal on background click
+document.getElementById('logs-modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('logs-modal')) closeModal();
+});
+
+// ── Auto-scroll toggle ────────────────────────────────────────────────────────
+document.getElementById('terminal').addEventListener('scroll', (e) => {
+  const t = e.target;
+  autoScrollLogs = t.scrollTop + t.clientHeight >= t.scrollHeight - 20;
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+connectWS();
+loadStatus();
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>

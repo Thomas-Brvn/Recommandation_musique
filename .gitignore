@@ -55,3 +55,9 @@ Thumbs.db
 /tmp/
 *.tmp
 *.log
+
+# Claude Code
+.claude/
+
+# Modèles (trop volumineux pour GitHub)
+models/
