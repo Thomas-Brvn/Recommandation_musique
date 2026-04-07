@@ -657,6 +657,60 @@
       border-left: 3px solid var(--green); padding-left: 10px;
       margin: 6px 0; color: var(--muted);
     }
+
+    /* ── Toasts ──────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed; bottom: 100px; right: 20px;
+      display: flex; flex-direction: column; gap: 8px;
+      z-index: 9999; pointer-events: none;
+    }
+    .toast {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 16px; border-radius: 10px; max-width: 340px;
+      font-size: .82rem; line-height: 1.45; font-weight: 500;
+      pointer-events: all; cursor: pointer;
+      animation: toastIn .25s ease both;
+      box-shadow: 0 4px 20px rgba(0,0,0,.4);
+    }
+    .toast.out { animation: toastOut .25s ease forwards; }
+    @keyframes toastIn  { from { opacity:0; transform:translateY(10px) scale(.96); } to { opacity:1; transform:none; } }
+    @keyframes toastOut { to   { opacity:0; transform:translateY(10px) scale(.96); } }
+    .toast-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .toast-body { flex: 1; }
+    .toast-title { font-weight: 700; margin-bottom: 2px; }
+    .toast-msg   { font-weight: 400; color: inherit; opacity: .85; }
+    .toast.error   { background: #3b1616; border: 1px solid #7f2929; color: #ffb3b3; }
+    .toast.warning { background: #2e2208; border: 1px solid #7a5b0f; color: #ffd980; }
+    .toast.info    { background: #0e1f2e; border: 1px solid #1d4d72; color: #8ecfff; }
+    .toast.success { background: #0d2e1a; border: 1px solid #1a6b38; color: #7fffa8; }
+
+    /* ── Indicateur de statut API (sidebar) ─────────────────── */
+    #api-status {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; margin: 8px 0;
+      border-radius: var(--radius); font-size: .75rem;
+      background: rgba(255,255,255,.04);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      transition: background .4s;
+    }
+    .status-dot.ok      { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.warn    { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+    .status-dot.error   { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+    .status-dot.loading { background: var(--muted); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:.4; } 50% { opacity:1; } }
+    #api-status-text { color: var(--muted); flex: 1; }
+
+    /* ── Bannière erreur catalogue ───────────────────────────── */
+    #catalog-error-banner {
+      display: none; align-items: center; gap: 12px;
+      padding: 14px 20px; background: #3b1616;
+      border: 1px solid #7f2929; border-radius: var(--radius);
+      color: #ffb3b3; font-size: .84rem; margin-bottom: 16px;
+    }
+    #catalog-error-banner.visible { display: flex; }
+    #catalog-error-banner strong { color: #fff; }
   </style>
 </head>
 <body>
@@ -697,6 +751,11 @@
       </button>
     </nav>
 
+    <div id="api-status">
+      <span class="status-dot loading" id="status-dot"></span>
+      <span id="api-status-text">Connexion…</span>
+    </div>
+
     <div>
       <div class="sidebar-section-title">Ma bibliothèque</div>
       <a id="nav-likes" onclick="showLikes()">
@@ -732,6 +791,13 @@
     </div>
 
     <div id="content">
+      <div id="catalog-error-banner">
+        <span style="font-size:1.2rem">⚠️</span>
+        <div>
+          <strong id="catalog-error-title">Service indisponible</strong>
+          <div id="catalog-error-msg">Impossible de joindre l'API.</div>
+        </div>
+      </div>
       <div class="section-header">
         <h2 id="section-title">Catalogue</h2>
         <span class="count" id="section-count"></span>
@@ -830,6 +896,7 @@
   </div>
 </div>
 
+<div id="toast-container"></div>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════
@@ -1096,17 +1163,131 @@ function debounce(fn, ms) {
   let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
-async function apiFetch(url, method = 'GET', body = null) {
+/* ══════════════════════════════════════════════════════════════
+   Toast notifications
+══════════════════════════════════════════════════════════════ */
+const ICONS = { error:'🔴', warning:'🟡', info:'🔵', success:'🟢' };
+const TITLES = { error:'Erreur', warning:'Avertissement', info:'Info', success:'Succès' };
+
+function showToast(msg, type = 'error', duration = 5000) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <span class="toast-icon">${ICONS[type]}</span>
+    <div class="toast-body">
+      <div class="toast-title">${TITLES[type]}</div>
+      <div class="toast-msg">${msg}</div>
+    </div>`;
+  toast.onclick = () => dismissToast(toast);
+  container.appendChild(toast);
+  if (duration > 0) setTimeout(() => dismissToast(toast), duration);
+}
+
+function dismissToast(toast) {
+  toast.classList.add('out');
+  toast.addEventListener('animationend', () => toast.remove(), { once: true });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Health check & status indicator
+══════════════════════════════════════════════════════════════ */
+function setStatus(state, text) {
+  const dot = document.getElementById('status-dot');
+  const label = document.getElementById('api-status-text');
+  dot.className = `status-dot ${state}`;
+  label.textContent = text;
+}
+
+async function checkHealth() {
+  try {
+    const r = await fetch('/health', { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+
+    if (data.model_loaded) {
+      setStatus('ok', 'API · Modèle prêt');
+    } else {
+      setStatus('warn', 'API active · Modèle non chargé');
+      showToast(
+        'Le modèle de recommandation n\'est pas chargé. Les recommandations personnalisées ne seront pas disponibles.',
+        'warning', 8000
+      );
+    }
+    // Check festival agent separately
+    checkFestivalAgent();
+  } catch (e) {
+    setStatus('error', 'API inaccessible');
+    showBannerError('API inaccessible', 'Le serveur ne répond pas. Assurez-vous que l\'API est démarrée (<code>uv run uvicorn src.api.main:app</code>).', true);
+    showToast('Le serveur API n\'est pas accessible. Vérifiez qu\'il est bien démarré.', 'error', 0);
+  }
+}
+
+async function checkFestivalAgent() {
+  try {
+    // Probe via a lightweight options request (or catch a 503 from a lightweight call)
+    const r = await fetch('/festival/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: '__ping__', session_id: '__health__' }),
+      signal: AbortSignal.timeout(3000),
+    });
+    // Don't care about the response body — just whether the endpoint is available
+    // 503 = agent not loaded, others = Ollama issue will surface when user asks
+  } catch (_) {
+    // Network timeout during health probe — ignore, not critical
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Catalogue error banner
+══════════════════════════════════════════════════════════════ */
+function showBannerError(title, msg, persist = false) {
+  const banner = document.getElementById('catalog-error-banner');
+  document.getElementById('catalog-error-title').textContent = title;
+  document.getElementById('catalog-error-msg').innerHTML = msg;
+  banner.classList.add('visible');
+  if (!persist) setTimeout(() => banner.classList.remove('visible'), 8000);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   API fetch helper — avec gestion d'erreur contextuelle
+══════════════════════════════════════════════════════════════ */
+async function apiFetch(url, method = 'GET', body = null, { silent = false } = {}) {
   try {
     const opts = { method, headers: {} };
     if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
     const r = await fetch(url, opts);
-    if (!r.ok) throw new Error(`${r.status}`);
     if (r.status === 204) return true;
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      if (!silent) handleApiError(r.status, err.detail || '', url);
+      return null;
+    }
     return await r.json();
   } catch (e) {
+    if (!silent) {
+      setStatus('error', 'API inaccessible');
+      if (!document.getElementById('catalog-error-banner').classList.contains('visible')) {
+        showBannerError('Serveur inaccessible', 'L\'API ne répond plus. Vérifiez que le serveur est bien démarré.', true);
+      }
+    }
     console.warn('API error:', url, e);
     return null;
+  }
+}
+
+function handleApiError(status, detail, url) {
+  if (status === 503) {
+    if (url.includes('/recommend') || url.includes('/history') || url.includes('/similar')) {
+      showToast('Le modèle de recommandation n\'est pas chargé. Utilisez <b>/reload</b> pour le charger.', 'warning');
+    } else {
+      showToast(`Service indisponible (503) : ${detail || 'le service n\'est pas prêt.'}`, 'warning');
+    }
+  } else if (status === 404) {
+    // Silencieux pour les 404 (utilisateur non trouvé, etc.)
+  } else if (status >= 500) {
+    showToast(`Erreur serveur (${status}) : ${detail || 'erreur interne.'}`, 'error');
   }
 }
 
@@ -1553,7 +1734,8 @@ async function sendChatMessage() {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      appendMsg(`Erreur : ${err.detail || res.status}`, 'ai');
+      const detail = err.detail || '';
+      appendMsg(festivalChatError(res.status, detail), 'ai');
     } else {
       const data = await res.json();
       chatSessionId = data.session_id;
@@ -1561,7 +1743,8 @@ async function sendChatMessage() {
     }
   } catch (e) {
     removeTyping();
-    appendMsg('Impossible de joindre le serveur.', 'ai');
+    appendMsg('❌ Impossible de joindre le serveur. Vérifiez que l\'API est démarrée.', 'ai');
+    setStatus('error', 'API inaccessible');
   } finally {
     chatLoading = false;
     document.getElementById('chat-send').disabled = false;
@@ -1572,6 +1755,26 @@ async function sendChatMessage() {
 document.getElementById('chat-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendChatMessage();
 });
+
+function festivalChatError(status, detail) {
+  const d = (detail || '').toLowerCase();
+  if (status === 503 || d.includes('agent festival non disponible')) {
+    return '🤖 **Agent non disponible.** Vérifiez que les clés API sont configurées (`PINECONE_API_KEY`, `OPENAI_API_KEY`) et que le serveur a bien démarré.';
+  }
+  if (d.includes('connection refused') || d.includes('ollama') || d.includes('connect error')) {
+    return '🦙 **Ollama n\'est pas accessible.** Assurez-vous qu\'Ollama est démarré :\n```\nollama serve\n```\nPuis rechargez la page.';
+  }
+  if (d.includes('resource_exhausted') || d.includes('429') || d.includes('quota')) {
+    return '⏳ **Quota API épuisé.** La limite de requêtes a été atteinte. Réessayez demain ou passez à Ollama (local, sans quota).';
+  }
+  if (status >= 500) {
+    return `⚠️ **Erreur serveur (${status}).** Une erreur interne s'est produite. Consultez les logs du serveur pour plus de détails.`;
+  }
+  return `❌ **Erreur ${status}** : ${detail || 'réponse inattendue du serveur.'}`;
+}
+
+// Vérification au démarrage
+checkHealth();
 </script>
 </body>
 </html>
