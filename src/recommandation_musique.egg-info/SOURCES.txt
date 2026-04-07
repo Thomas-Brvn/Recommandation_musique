@@ -7,6 +7,7 @@ src/train.py
 src/api/__init__.py
 src/api/catalog.py
 src/api/cover_service.py
+src/api/library.py
 src/api/main.py
 src/api/recommender.py
 src/app/api.py
