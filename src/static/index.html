@@ -627,6 +627,36 @@
       margin-left: auto; background: var(--green); color: #000;
       font-size: .65rem; font-weight: 700; padding: 2px 6px; border-radius: 8px;
     }
+    /* ── Markdown dans les messages IA ─────────────────────────── */
+    .chat-msg.ai p { margin: 0 0 8px; }
+    .chat-msg.ai p:last-child { margin-bottom: 0; }
+    .chat-msg.ai strong { color: #fff; font-weight: 700; }
+    .chat-msg.ai em { color: var(--muted); font-style: italic; }
+    .chat-msg.ai ul, .chat-msg.ai ol {
+      margin: 6px 0 8px 0; padding-left: 20px;
+    }
+    .chat-msg.ai li { margin-bottom: 5px; }
+    .chat-msg.ai li > strong { color: var(--green); }
+    .chat-msg.ai h1, .chat-msg.ai h2, .chat-msg.ai h3 {
+      font-size: .9rem; font-weight: 700; color: #fff;
+      margin: 10px 0 4px;
+    }
+    .chat-msg.ai code {
+      background: rgba(255,255,255,.1); padding: 1px 5px;
+      border-radius: 4px; font-size: .8rem; font-family: monospace;
+    }
+    .chat-msg.ai pre {
+      background: rgba(255,255,255,.06); padding: 10px 12px;
+      border-radius: 8px; overflow-x: auto; margin: 6px 0;
+    }
+    .chat-msg.ai pre code { background: none; padding: 0; }
+    .chat-msg.ai a { color: var(--green); text-decoration: none; }
+    .chat-msg.ai a:hover { text-decoration: underline; }
+    .chat-msg.ai hr { border: none; border-top: 1px solid var(--divider); margin: 8px 0; }
+    .chat-msg.ai blockquote {
+      border-left: 3px solid var(--green); padding-left: 10px;
+      margin: 6px 0; color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -800,6 +830,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════
    Library state
@@ -1475,7 +1506,11 @@ function appendMsg(text, role) {
   const msgs = document.getElementById('chat-messages');
   const div  = document.createElement('div');
   div.className = `chat-msg ${role}`;
-  div.textContent = text;
+  if (role === 'ai') {
+    div.innerHTML = marked.parse(text);
+  } else {
+    div.textContent = text;
+  }
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
   return div;
