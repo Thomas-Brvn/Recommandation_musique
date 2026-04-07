@@ -61,3 +61,5 @@ Thumbs.db
 
 # Modèles (trop volumineux pour GitHub)
 models/
+uv.lock
+.gitignore
