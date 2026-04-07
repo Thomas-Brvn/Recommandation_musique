@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .catalog import CatalogService
-from .cover_service import get_cover_url
+from .cover_service import get_cover_url, get_track_info
 from .library import LibraryService
 from .recommender import RecommendationService
 
@@ -371,8 +371,8 @@ async def get_album_cover(
     Retourne l'URL de la cover d'album via l'iTunes Search API.
     Résultat mis en cache en mémoire.
     """
-    url = await get_cover_url(artist, title)
-    return {"url": url}
+    info = await get_track_info(artist, title)
+    return {"url": info["url"], "preview_url": info["preview_url"]}
 
 
 # ---------------------------------------------------------------------------

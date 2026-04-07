@@ -841,11 +841,11 @@
         </button>
       </div>
       <div class="progress-bar-wrap">
-        <span class="time">1:24</span>
+        <span class="time" id="time-current">0:00</span>
         <div class="progress-track">
           <div class="progress-fill" id="progress-fill"></div>
         </div>
-        <span class="time">3:47</span>
+        <span class="time" id="time-duration">0:30</span>
       </div>
     </div>
 
@@ -897,6 +897,7 @@
 </div>
 
 <div id="toast-container"></div>
+<audio id="audio-player" crossorigin="anonymous" preload="none"></audio>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════
@@ -1291,8 +1292,12 @@ function handleApiError(status, detail, url) {
   }
 }
 
+async function fetchTrackInfo(artist, title) {
+  return await apiFetch(`/catalog/cover?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`);
+}
+
 async function fetchCover(artist, title) {
-  const data = await apiFetch(`/catalog/cover?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`);
+  const data = await fetchTrackInfo(artist, title);
   return data?.url || null;
 }
 
@@ -1408,6 +1413,47 @@ function renderTracks(tracks, append = false, withScore = false) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Audio player
+══════════════════════════════════════════════════════════════ */
+const audio = document.getElementById('audio-player');
+
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+audio.addEventListener('timeupdate', () => {
+  const fill = document.getElementById('progress-fill');
+  const t1   = document.getElementById('time-current');
+  const t2   = document.getElementById('time-duration');
+  if (audio.duration) {
+    fill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+    if (t1) t1.textContent = fmtTime(audio.currentTime);
+    if (t2) t2.textContent = fmtTime(audio.duration);
+  }
+});
+
+audio.addEventListener('ended', () => {
+  state.isPlaying = false;
+  updatePlayBtn();
+  document.getElementById('progress-fill').style.width = '0%';
+});
+
+// Seek on progress bar click
+document.querySelector('.progress-track').addEventListener('click', (e) => {
+  if (!audio.duration) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+});
+
+// Volume slider
+document.querySelector('.vol-slider').addEventListener('input', (e) => {
+  audio.volume = e.target.value / 100;
+});
+
+/* ══════════════════════════════════════════════════════════════
    Track selection & player
 ══════════════════════════════════════════════════════════════ */
 async function selectTrack(track) {
@@ -1419,38 +1465,39 @@ async function selectTrack(track) {
   document.getElementById('player-title').textContent  = title;
   document.getElementById('player-artist').textContent = artist;
 
-  // Update player art
+  // Update player art + get preview URL
   const playerArt = document.getElementById('player-art');
   playerArt.src = PLACEHOLDER;
-  const url = await fetchCover(artist, title);
-  if (url) playerArt.src = url;
+  const info = await fetchTrackInfo(artist, title);
+  if (info?.url) playerArt.src = info.url;
 
-  // Animate progress
-  animateProgress();
+  // Load audio preview
+  if (info?.preview_url) {
+    audio.src = info.preview_url;
+    audio.load();
+    audio.play().then(() => {
+      state.isPlaying = true;
+      updatePlayBtn();
+    }).catch(() => {});
+  } else {
+    audio.src = '';
+    state.isPlaying = false;
+    updatePlayBtn();
+    showToast('Aperçu non disponible pour ce titre');
+  }
 
   // Load similar tracks
   openSimilar(id, title);
 }
 
-let progressInterval = null;
-function animateProgress() {
-  const fill = document.getElementById('progress-fill');
-  let pct = 0;
-  clearInterval(progressInterval);
-  progressInterval = setInterval(() => {
-    pct = (pct + 0.3) % 100;
-    fill.style.width = pct + '%';
-  }, 200);
-  state.isPlaying = true;
-  updatePlayBtn();
-}
-
 function togglePlay() {
-  state.isPlaying = !state.isPlaying;
+  if (!audio.src) return;
   if (state.isPlaying) {
-    animateProgress();
+    audio.pause();
+    state.isPlaying = false;
   } else {
-    clearInterval(progressInterval);
+    audio.play().catch(() => {});
+    state.isPlaying = true;
   }
   updatePlayBtn();
 }
