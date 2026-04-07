@@ -61,3 +61,4 @@ Thumbs.db
 
 # Modèles (trop volumineux pour GitHub)
 models/
+config/download_instance.json
