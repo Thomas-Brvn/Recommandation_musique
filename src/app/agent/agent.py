@@ -5,7 +5,7 @@ Agent RAG pour les Festivals 2026
 import os
 from dotenv import load_dotenv
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
@@ -38,10 +38,9 @@ prompt = ChatPromptTemplate.from_messages([
 # CONFIGURATION DE L'AGENT
 # ============================================================================
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    convert_system_message_to_human=True,
-    thinking={"thinking_budget": 0},  # Désactiver le mode thinking pour éviter la troncature
+llm = ChatOllama(
+    model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+    base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
 )
 
 # Créer l'agent avec tool calling
