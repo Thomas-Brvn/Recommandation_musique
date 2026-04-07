@@ -78,4 +78,8 @@ def ask(question: str, chat_history: list = None) -> str:
     return response.get("output", "Désolé, je n'ai pas pu générer une réponse.")
    
 if __name__ == "__main__":
-    chat()
+    while True:
+        question = input("Question (q pour quitter): ")
+        if question.lower() == "q":
+            break
+        print(ask(question))
