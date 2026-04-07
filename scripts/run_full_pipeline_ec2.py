@@ -58,7 +58,11 @@ free -h
 # Installer les dépendances système
 echo "Installation des dépendances..."
 sudo yum update -y
-sudo yum install -y python3-pip zstd
+sudo yum install -y python3-pip git zstd
+
+# Cloner le code depuis GitHub
+echo "Clonage du repo GitHub..."
+git clone https://github.com/Thomas-Brvn/Recommandation_musique.git .
 
 # Créer l'environnement virtuel
 python3 -m venv venv

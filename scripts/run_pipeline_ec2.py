@@ -73,10 +73,9 @@ pip install pandas pyarrow scipy zstandard numpy scikit-learn tqdm boto3
 pip install implicit  # Supporte GPU automatiquement si CUDA disponible
 pip install fastapi uvicorn pydantic
 
-# Télécharger le code depuis S3
-echo "Téléchargement du code..."
-aws s3 cp s3://$S3_BUCKET/code/scripts/ scripts/ --recursive
-aws s3 cp s3://$S3_BUCKET/code/src/ src/ --recursive
+# Cloner le code depuis GitHub
+echo "Clonage du repo GitHub..."
+git clone https://github.com/Thomas-Brvn/Recommandation_musique.git .
 
 # Créer les répertoires
 mkdir -p data/raw/listenbrainz data/extracted data/processed models
@@ -281,36 +280,9 @@ def get_latest_deep_learning_ami(ec2_client, region: str) -> str:
     return images[0]['ImageId']
 
 
-def upload_code_to_s3(s3_client, bucket: str):
-    """Upload le code source vers S3."""
-    print("Upload du code vers S3...")
-
-    base_dir = Path(__file__).parent.parent
-
-    # Scripts
-    scripts_dir = base_dir / "scripts"
-    for script in ['extract_incrementals.py', 'parse_listens.py', 'aggregate_data.py', 'build_matrix.py']:
-        script_path = scripts_dir / script
-        if script_path.exists():
-            s3_client.upload_file(str(script_path), bucket, f"code/scripts/{script}")
-            print(f"  Uploadé: {script}")
-
-    # Source
-    src_dir = base_dir / "src"
-    for root, dirs, files in os.walk(src_dir):
-        for file in files:
-            if file.endswith('.py'):
-                local_path = Path(root) / file
-                relative_path = local_path.relative_to(base_dir)
-                s3_key = f"code/{relative_path}"
-                s3_client.upload_file(str(local_path), bucket, s3_key)
-                print(f"  Uploadé: {relative_path}")
-
-
 def launch_ec2_instance(
     ec2_client,
     iam_client,
-    s3_client,
     instance_type: str = INSTANCE_TYPE,
     use_gpu: bool = True
 ) -> str:
@@ -319,9 +291,6 @@ def launch_ec2_instance(
     print("=" * 60)
     print("LANCEMENT DU PIPELINE EC2")
     print("=" * 60)
-
-    # Upload du code
-    upload_code_to_s3(s3_client, S3_BUCKET)
 
     # Rôle IAM
     instance_profile = get_or_create_iam_role(iam_client)
@@ -440,7 +409,7 @@ def main():
 
     # Lancer l'instance
     instance_id = launch_ec2_instance(
-        ec2_client, iam_client, s3_client,
+        ec2_client, iam_client,
         instance_type=instance_type
     )
 
