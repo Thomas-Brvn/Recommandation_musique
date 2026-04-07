@@ -48,70 +48,102 @@ STOP_WORDS = {
 # Normalisation
 # ──────────────────────────────────────────────
 
-def normalize(s: str) -> str:
-    """
-    Normalise un titre pour la comparaison.
-
-    - Supprime les accents
-    - Minuscule
-    - Supprime les numéros de piste (01., 05. ...)
-    - Supprime feat/ft et ce qui suit
-    - Supprime les parenthèses contenant des variantes connues
-      (remix, live, acoustic, radio edit, remaster, official, video)
-    - Remplace les séparateurs (-, —, |, ·, _) par des espaces
-    - Garde uniquement les caractères alphanumériques
-    """
-    if not isinstance(s, str):
-        return ''
-
+def _clean_base(s: str) -> str:
+    """Nettoyage de base commun à l'artiste et au titre."""
     # Normaliser les accents
     s = unicodedata.normalize('NFD', s)
     s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
-
     s = s.lower()
-
-    # Supprimer les numéros de piste en début de string
-    s = re.sub(r'^\s*\d{1,3}[\.\-\s]+', '', s)
-
-    # Supprimer feat/ft et tout ce qui suit
-    s = re.sub(r'\b(feat\.?|ft\.?|featuring)\b.*', '', s)
-
-    # Supprimer parenthèses/crochets contenant des variantes qualitatives
-    variant_pattern = re.compile(
-        r'[\(\[（][^)\]）]*\b('
-        r'remix|rmx|live|acoustic|radio.?edit|radio.?version|'
-        r'remaster|remastered|official|video|clip|lyric|version|'
-        r'edit|extended|instrumental|cover|tribute|karaoke'
-        r')\b[^)\]）]*[\)\]）]',
-        re.IGNORECASE
-    )
-    s = variant_pattern.sub('', s)
-
-    # Remplacer séparateurs par espace
-    s = re.sub(r'[-—|·_/\\]+', ' ', s)
-
-    # Garder uniquement alphanumériques + espace
-    s = re.sub(r'[^a-z0-9 ]+', ' ', s)
-
-    # Normaliser les espaces
+    # Supprimer uniquement la ponctuation, garder les caractères unicode
+    s = re.sub(r'[^\w\s]', ' ', s)
     return re.sub(r'\s+', ' ', s).strip()
+
+
+_VARIANT_RE = re.compile(
+    r'[\(\[（][^)\]）]*\b('
+    r'remix|rmx|live|acoustic|radio.?edit|radio.?version|'
+    r'remaster|remastered|official|video|clip|lyric|version|'
+    r'edit|extended|instrumental|cover|tribute|karaoke'
+    r')\b[^)\]）]*[\)\]）]',
+    re.IGNORECASE
+)
+
+
+def normalize_title(s: str) -> str:
+    """
+    Normalise la partie TITRE d'un morceau.
+    Supprime feat/ft, les variantes entre parenthèses et les numéros de piste.
+    """
+    if not isinstance(s, str):
+        return ''
+    # Supprimer les numéros de piste en début
+    s = re.sub(r'^\s*\d{1,3}[\.\-\s]+', '', s)
+    # Supprimer feat/ft et tout ce qui suit (seulement dans le titre)
+    s = re.sub(r'\b(feat\.?|ft\.?|featuring)\b.*', '', s)
+    # Supprimer variantes qualitatives entre parenthèses
+    s = _VARIANT_RE.sub('', s)
+    return _clean_base(s)
+
+
+def normalize_artist(s: str) -> str:
+    """
+    Normalise la partie ARTISTE. Ne supprime pas feat. pour éviter de
+    perdre le nom de l'artiste principal dans 'Artiste Feat. X - Titre'.
+    Supprime juste le feat. et les guests (on garde l'artiste principal).
+    """
+    if not isinstance(s, str):
+        return ''
+    # Garder seulement l'artiste principal (avant feat/ft/&/,)
+    s = re.sub(r'\s*(feat\.?|ft\.?|featuring)\b.*', '', s, flags=re.IGNORECASE)
+    s = re.sub(r'\s*[&,]\s*.*', '', s)  # "Artist & Guest" → "Artist"
+    return _clean_base(s)
+
+
+def normalize(s: str) -> str:
+    """
+    Normalise une string complète 'Artiste - Titre'.
+    Sépare artiste et titre avant d'appliquer les règles spécifiques.
+    """
+    if not isinstance(s, str):
+        return ''
+    parts = s.split(' - ', 1)
+    if len(parts) == 2:
+        artist = normalize_artist(parts[0])
+        title  = normalize_title(parts[1])
+        return f"{artist} - {title}" if artist and title else (artist or title)
+    return normalize_title(s)
 
 
 def blocking_key(norm: str) -> str | None:
     """
     Calcule la clé de blocage d'un titre normalisé.
 
-    Utilise les 2 mots les plus longs (>= 5 chars, hors stop words)
-    pour regrouper les candidats potentiels. L'idée est que deux titres
-    doublons partagent probablement au moins 2 mots significatifs.
+    Le séparateur ' - ' divise artiste et titre. On prend le mot le plus long
+    côté artiste ET le mot le plus long côté titre, pour éviter de regrouper
+    deux chansons différentes du même artiste.
     """
-    words = [w for w in norm.split() if len(w) >= 5 and w not in STOP_WORDS]
+    # Essayer de séparer artiste et titre sur ' - '
+    parts = norm.split(' - ', 1)
+    if len(parts) == 2:
+        artist_part, track_part = parts
+    else:
+        # Pas de séparateur → on prend les deux moitiés
+        mid = len(norm) // 2
+        artist_part, track_part = norm[:mid], norm[mid:]
 
-    if len(words) >= 2:
-        # Trier pour que "ciel gims" et "gims ciel" donnent la même clé
-        return '_'.join(sorted(words)[:2])
-    elif len(words) == 1:
-        return words[0]
+    def best_word(s: str) -> str | None:
+        words = [w for w in s.split() if len(w) >= 4 and w not in STOP_WORDS]
+        return max(words, key=len) if words else None
+
+    artist_word = best_word(artist_part)
+    track_word  = best_word(track_part)
+
+    if artist_word and track_word:
+        return f"{artist_word}_{track_word}"
+    elif track_word:
+        return track_word
+    elif artist_word:
+        return artist_word
     return None
 
 
@@ -173,9 +205,16 @@ def deduplicate_tracks(
     uf = UnionFind()
 
     # ── 2. Normaliser ─────────────────────────
+    # On sépare artiste et titre AVANT normalisation pour garder la frontière.
+    # La clé complète sert à détecter les doublons exacts.
+    # La partie titre sert au score de similarité fuzzy.
     print("\nNormalisation des titres...")
-    norm_of: dict[str, str] = {}
+    norm_of:       dict[str, str] = {}  # clé complète normalisée
+    title_norm_of: dict[str, str] = {}  # titre seul normalisé
+
     for k in tqdm(track_keys, desc="Normalisation"):
+        parts = k.split(' - ', 1)
+        title_norm_of[k] = normalize_title(parts[1] if len(parts) == 2 else k)
         norm_of[k] = normalize(k)
 
     # ── 3. Fusions exactes (même string normalisé) ─
@@ -213,7 +252,59 @@ def deduplicate_tracks(
     print(f"  Blocs trop grands   : {skipped_blocks} (ignorés)")
     print(f"  Comparaisons prévues: {total_comparisons:,}")
 
+    # Précalculer les titres normalisés par norm complet (pour lookup rapide)
+    norm_to_title: dict[str, str] = {}
+    for orig, norm in norm_of.items():
+        if norm not in norm_to_title:
+            norm_to_title[norm] = title_norm_of[orig]
+
     # ── 5. Similarité fuzzy dans chaque bloc ──
+    # Le score est calculé sur le TITRE seul (pas artiste + titre).
+    # Cela évite de fusionner deux chansons différentes du même artiste
+    # parce que le nom d'artiste (souvent long) dominerait le score.
+    _ROMAN = {'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5, 'vi': 6,
+              'vii': 7, 'viii': 8, 'ix': 9, 'x': 10, 'xi': 11, 'xii': 12}
+    _ROMAN_RE = re.compile(r'\b(i{1,3}|iv|vi{0,3}|ix|xi{0,2}|xii)\b')
+
+    def extract_numbers(s: str) -> set[str]:
+        """Extrait les nombres arabes ET romains, normalisés en arabes."""
+        arabic  = set(re.findall(r'\d+', s))
+        romans  = {str(_ROMAN[m]) for m in _ROMAN_RE.findall(s.lower())}
+        return arabic | romans
+
+    def should_merge(norm_a: str, norm_b: str, title_a: str, title_b: str) -> bool:
+        """
+        Décide si deux tracks normalisés doivent être fusionnés.
+
+        Règles:
+        1. Score de similarité sur les titres seuls >= threshold
+        2. Si le titre est court (<= 2 mots significatifs), exiger aussi
+           que la string complète (artiste + titre) soit similaire
+           → évite "Alt-J - Intro" ≈ "Autre artiste - Intro"
+        3. Si les deux titres contiennent des chiffres, les chiffres
+           doivent être identiques
+           → évite "Oxygene Part 1" ≈ "Oxygene Part 3"
+        """
+        # Règle 3 : chiffres (arabes ou romains) asymétriques ou différents → pas de fusion
+        # "Part I" ≠ "Part II", et "Oxygene Part 1" ≠ "Oxygene" (sans numéro)
+        nums_a = extract_numbers(title_a)
+        nums_b = extract_numbers(title_b)
+        if nums_a != nums_b:
+            return False
+
+        title_score = fuzz.token_sort_ratio(title_a, title_b)
+        if title_score < threshold:
+            return False
+
+        # Règle 2 : titre court → vérifier aussi la string complète
+        sig_words_a = [w for w in title_a.split() if len(w) >= 4]
+        sig_words_b = [w for w in title_b.split() if len(w) >= 4]
+        if len(sig_words_a) <= 1 or len(sig_words_b) <= 1:
+            full_score = fuzz.token_sort_ratio(norm_a, norm_b)
+            return full_score >= threshold
+
+        return True
+
     print(f"\nComparaisons fuzzy...")
     seen_pairs: set[tuple[str, str]] = set()
     fuzzy_count = 0
@@ -227,9 +318,9 @@ def deduplicate_tracks(
                     continue
                 seen_pairs.add(pair)
 
-                # token_sort_ratio gère les réordonnements de mots
-                score = fuzz.token_sort_ratio(a, b)
-                if score >= threshold:
+                title_a = norm_to_title.get(a, a)
+                title_b = norm_to_title.get(b, b)
+                if should_merge(a, b, title_a, title_b):
                     orig_a = norm_to_originals[a][0]
                     orig_b = norm_to_originals[b][0]
                     uf.union(orig_a, orig_b)
