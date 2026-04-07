@@ -1379,7 +1379,7 @@ function loadCoversForCards(tracks) {
         if (artEl) artEl.classList.remove('loading');
         if (skelEl) skelEl.classList.add('hidden');
       }
-    }, i * 60); // 60ms stagger
+    }, i * 80); // 80ms stagger — laisse le sémaphore backend réguler iTunes
   });
 }
 
