@@ -8,9 +8,36 @@ import os
 from pathlib import Path
 from typing import Tuple
 
+import re
+import unicodedata
+
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+
+
+def normalize_track_string(artist: str, track: str) -> str:
+    """
+    Normalise un titre pour regrouper les variations d'un même morceau.
+    Ex: "Ciel---GIMS", "ciel  maitre gims", "GIMS - Ciel" → même clé.
+    """
+    def clean(s: str) -> str:
+        if not isinstance(s, str):
+            return ''
+        # Normaliser les accents (é → e)
+        s = unicodedata.normalize('NFD', s)
+        s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+        # Minuscule
+        s = s.lower()
+        # Remplacer tout ce qui n'est pas alphanumérique par un espace
+        s = re.sub(r'[^a-z0-9]+', ' ', s)
+        return s.strip()
+
+    artist_clean = clean(artist)
+    track_clean = clean(track)
+    # Trier les tokens pour gérer "gims ciel" vs "ciel gims"
+    tokens = sorted(artist_clean.split() + track_clean.split())
+    return ' '.join(tokens)
 
 # Configuration
 PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
@@ -65,9 +92,17 @@ def aggregate_listens(
     # Supprimer les lignes sans user ou track
     df = df.dropna(subset=['user_name', 'track_name'])
 
-    # Créer une clé unique pour les tracks (artist + track)
-    # Cela évite les collisions entre tracks de même nom par différents artistes
-    df['track_key'] = df['artist_name'].fillna('Unknown') + ' - ' + df['track_name']
+    # Créer une clé unique pour les tracks:
+    # - Priorité 1: recording_mbid (identifiant stable MusicBrainz)
+    # - Priorité 2: string normalisé (regroupe les variations de titre)
+    has_mbid = df['recording_mbid'].notna() & (df['recording_mbid'] != '')
+    df['track_key'] = df['recording_mbid'].where(has_mbid)
+    fallback_mask = ~has_mbid
+    df.loc[fallback_mask, 'track_key'] = df[fallback_mask].apply(
+        lambda r: normalize_track_string(r['artist_name'], r['track_name']), axis=1
+    )
+    mbid_pct = has_mbid.mean() * 100
+    print(f"  {mbid_pct:.1f}% des écoutes ont un recording_mbid")
 
     print(f"Après nettoyage: {len(df):,} ({len(df)/initial_count*100:.1f}%)")
 
