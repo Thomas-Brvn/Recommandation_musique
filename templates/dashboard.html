@@ -99,6 +99,57 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+    /* Pipeline stepper */
+    .stepper {
+      display: flex; align-items: flex-start; position: relative;
+      padding: 8px 0 4px;
+    }
+    .step-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      position: relative; z-index: 1;
+    }
+    .step-connector {
+      position: absolute; top: 16px; left: 50%; right: -50%;
+      height: 2px; background: #21262d; z-index: 0;
+    }
+    .step-connector.done { background: #238636; }
+    .step-item:last-child .step-connector { display: none; }
+
+    .step-dot {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; font-weight: 700; position: relative; z-index: 2;
+      border: 2px solid #30363d; background: #161b22; color: #484f58;
+      transition: all .3s;
+    }
+    .step-dot.done {
+      background: #0f2f1b; border-color: #238636; color: #3fb950;
+    }
+    .step-dot.active {
+      background: #2b2208; border-color: #d29922; color: #d29922;
+      animation: pulse-dot 1.8s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(210,153,34,.5); }
+      50%       { box-shadow: 0 0 0 6px rgba(210,153,34,0); }
+    }
+
+    .step-label {
+      font-size: 0.7rem; font-weight: 600; margin-top: 8px;
+      text-align: center; color: #8b949e;
+    }
+    .step-label.done   { color: #3fb950; }
+    .step-label.active { color: #d29922; }
+    .step-desc {
+      font-size: 0.62rem; color: #484f58; text-align: center;
+      margin-top: 2px; line-height: 1.3;
+    }
+    .step-ts {
+      font-size: 0.6rem; color: #3fb950; text-align: center;
+      margin-top: 2px; font-family: monospace;
+    }
   </style>
 </head>
 <body class="text-gray-200 min-h-screen p-4">
@@ -116,6 +167,18 @@
       <button onclick="loadStatus()" class="btn btn-gray text-xs">
         ↻ Refresh
       </button>
+    </div>
+  </div>
+
+  <!-- ── Pipeline stepper ──────────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <div class="section-title mb-0">Progression de la pipeline</div>
+      <span id="stepper-updated" class="text-xs text-gray-600">—</span>
+    </div>
+    <div class="stepper" id="stepper">
+      <!-- rendered by JS -->
+      <div class="text-xs text-gray-600">Chargement…</div>
     </div>
   </div>
 
@@ -290,6 +353,7 @@ function connectWS() {
     appendLog(msg);
     if (msg.type === 'done') {
       setTimeout(loadStatus, 1000);
+      setTimeout(loadStepper, 2000);
       updatePipelineIndicator(false);
     }
     if (msg.type === 'start') {
@@ -325,6 +389,45 @@ function appendLog(msg) {
 
 function clearTerminal() {
   document.getElementById('terminal').innerHTML = '';
+}
+
+// ── Pipeline stepper ──────────────────────────────────────────────────────────
+const STEP_ICONS = { data: '☁', dedup: '⧖', aggregation: '⊞', training: '◈', done: '✓' };
+
+async function loadStepper() {
+  try {
+    const { steps, error } = await fetch(`${API}/api/pipeline/steps`).then(r => r.json());
+    if (error || !steps || !steps.length) return;
+
+    const el = document.getElementById('stepper');
+    el.innerHTML = steps.map((s, i) => {
+      const isLast = i === steps.length - 1;
+      const dotClass = s.done ? 'done' : s.active ? 'active' : '';
+      const labelClass = s.done ? 'done' : s.active ? 'active' : '';
+      const connClass = s.done ? 'done' : '';
+      const icon = s.done ? '✓' : s.active ? '…' : (i + 1);
+
+      let tsHtml = '';
+      if (s.ts) {
+        const d = new Date(s.ts);
+        tsHtml = `<div class="step-ts">${d.toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit'})} ${d.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}</div>`;
+      }
+
+      return `
+        <div class="step-item">
+          ${!isLast ? `<div class="step-connector ${connClass}"></div>` : ''}
+          <div class="step-dot ${dotClass}" title="${s.desc}">${icon}</div>
+          <div class="step-label ${labelClass}">${s.label}</div>
+          <div class="step-desc">${s.desc}</div>
+          ${tsHtml}
+        </div>`;
+    }).join('');
+
+    document.getElementById('stepper-updated').textContent =
+      'Mis à jour ' + new Date().toLocaleTimeString('fr-FR');
+  } catch (e) {
+    console.error('stepper:', e);
+  }
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
@@ -592,7 +695,9 @@ document.getElementById('terminal').addEventListener('scroll', (e) => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 connectWS();
 loadStatus();
+loadStepper();
 setInterval(loadStatus, 30000);
+setInterval(loadStepper, 60000);
 </script>
 </body>
 </html>

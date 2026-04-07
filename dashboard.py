@@ -173,6 +173,103 @@ async def get_status():
     return result
 
 
+@app.get("/api/pipeline/steps")
+async def get_pipeline_steps():
+    """Retourne le statut de chaque étape de la pipeline."""
+    s3 = _s3()
+
+    def check(key: str):
+        """Retourne {'exists': bool, 'ts': ISO str or None}."""
+        try:
+            obj = s3.head_object(Bucket=S3_BUCKET, Key=key)
+            return {"exists": True, "ts": obj["LastModified"].isoformat()}
+        except ClientError:
+            return {"exists": False, "ts": None}
+
+    def count_prefix(prefix: str) -> int:
+        n = 0
+        paginator = s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=prefix, MaxKeys=1):
+            n += page.get("KeyCount", 0)
+        return n
+
+    try:
+        has_raw    = count_prefix("raw/listenbrainz/incrementals/") > 0
+        dedup      = check("processed/track_dedup_map.json")
+        matrix     = check("processed/user_item_matrix.npz")
+        model      = check("models/als_model.pkl")
+        completed  = check("status/full_pipeline_completed")
+
+        steps = [
+            {
+                "id":    "data",
+                "label": "Données brutes",
+                "desc":  "Dumps ListenBrainz dans S3",
+                "done":  has_raw,
+                "ts":    None,
+            },
+            {
+                "id":    "dedup",
+                "label": "Déduplication",
+                "desc":  "Mapping des tracks similaires",
+                "done":  dedup["exists"],
+                "ts":    dedup["ts"],
+            },
+            {
+                "id":    "aggregation",
+                "label": "Agrégation",
+                "desc":  "Matrice user×track",
+                "done":  matrix["exists"],
+                "ts":    matrix["ts"],
+            },
+            {
+                "id":    "training",
+                "label": "Entraînement ALS",
+                "desc":  "Modèle collaboratif",
+                "done":  model["exists"],
+                "ts":    model["ts"],
+            },
+            {
+                "id":    "done",
+                "label": "Pipeline terminé",
+                "desc":  "Upload complet sur S3",
+                "done":  completed["exists"],
+                "ts":    completed["ts"],
+            },
+        ]
+
+        # Déterminer l'étape active (première non-done après une done)
+        last_done = -1
+        for i, s in enumerate(steps):
+            if s["done"]:
+                last_done = i
+        active_idx = last_done + 1 if last_done < len(steps) - 1 else None
+
+        # Récupérer si une instance EC2 tourne pour confirmer "active"
+        ec2 = _ec2()
+        resp = ec2.describe_instances(
+            Filters=[
+                {"Name": "tag:Project", "Values": ["MusicRecommendation"]},
+                {"Name": "instance-state-name", "Values": ["running", "pending"]},
+            ]
+        )
+        ec2_running = any(
+            inst
+            for r in resp["Reservations"]
+            for inst in r["Instances"]
+        )
+
+        for i, s in enumerate(steps):
+            if i == active_idx and ec2_running:
+                s["active"] = True
+            else:
+                s["active"] = False
+
+        return {"steps": steps}
+    except Exception as e:
+        return {"error": str(e), "steps": []}
+
+
 @app.get("/api/ec2/logs/{instance_id}")
 async def get_ec2_logs(instance_id: str):
     """Console output de l'instance EC2."""

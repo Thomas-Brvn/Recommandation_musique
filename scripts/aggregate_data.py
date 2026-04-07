@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 from typing import Tuple
 
+import json
+
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -66,8 +68,20 @@ def aggregate_listens(
     df = df.dropna(subset=['user_name', 'track_name'])
 
     # Créer une clé unique pour les tracks (artist + track)
-    # Cela évite les collisions entre tracks de même nom par différents artistes
     df['track_key'] = df['artist_name'].fillna('Unknown') + ' - ' + df['track_name']
+
+    # Appliquer le mapping de déduplication si disponible
+    dedup_file = PROCESSED_DIR / "track_dedup_map.json"
+    if dedup_file.exists():
+        print(f"\nChargement du mapping de déduplication...")
+        with open(dedup_file, encoding='utf-8') as f:
+            dedup_map = json.load(f)
+        before = df['track_key'].nunique()
+        df['track_key'] = df['track_key'].map(lambda k: dedup_map.get(k, k))
+        after = df['track_key'].nunique()
+        print(f"  Tracks avant dedup : {before:,}")
+        print(f"  Tracks après dedup : {after:,}")
+        print(f"  Réduction          : {before - after:,} tracks fusionnées")
 
     print(f"Après nettoyage: {len(df):,} ({len(df)/initial_count*100:.1f}%)")
 
