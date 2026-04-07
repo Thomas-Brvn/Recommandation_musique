@@ -63,3 +63,4 @@ Thumbs.db
 models/
 uv.lock
 .gitignore
+CLAUDE.md
