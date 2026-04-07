@@ -166,13 +166,18 @@ def main():
     available = list_available_dumps()
     print(f"Dumps disponibles sur ListenBrainz : {len(available)}")
 
-    # 2. Dumps déjà dans S3
+    # 2. Dernier dump dans S3
     existing = list_s3_files(s3_client, args.bucket, S3_PREFIX)
     print(f"Dumps déjà dans S3                : {len(existing)}")
 
-    # 3. Dumps manquants
-    missing = [d for d in available if d["filename"] not in existing]
-    print(f"Dumps manquants                   : {len(missing)}")
+    # 3. Dumps après le dernier fichier connu
+    if existing:
+        last_in_s3 = sorted(existing)[-1]
+        print(f"Dernier dump en S3                : {last_in_s3}")
+        missing = [d for d in available if d["filename"] > last_in_s3]
+    else:
+        missing = available
+    print(f"Nouveaux dumps à télécharger      : {len(missing)}")
 
     if not missing:
         print("\nTout est à jour.")
