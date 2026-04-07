@@ -1351,35 +1351,68 @@ function buildCard(track, score = null) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   Cover loading (batched, non-blocking)
+   Cover lazy-loading via IntersectionObserver
+   — charge uniquement les cartes visibles, max 3 en parallèle
 ══════════════════════════════════════════════════════════════ */
-function loadCoversForCards(tracks) {
-  // Stagger to avoid hammering the API
-  tracks.forEach((track, i) => {
-    const id = track.item_id ?? track.id;
-    const artEl  = document.getElementById(`art-${id}`);
-    const skelEl = document.getElementById(`sk-${id}`);
-    if (!artEl) return;
+let _coverSemaphore = 0;
+const _coverQueue   = [];
+const _COVER_MAX    = 3; // max requêtes iTunes simultanées
 
-    setTimeout(async () => {
-      const url = await fetchCover(track.artist, track.title ?? track.track);
-      if (url && artEl) {
-        const img = new Image();
-        img.onload = () => {
-          artEl.src = url;
-          artEl.classList.remove('loading');
-          if (skelEl) skelEl.classList.add('hidden');
-        };
-        img.onerror = () => {
-          artEl.classList.remove('loading');
-          if (skelEl) skelEl.classList.add('hidden');
-        };
-        img.src = url;
-      } else {
-        if (artEl) artEl.classList.remove('loading');
+async function _acquireCover() {
+  if (_coverSemaphore < _COVER_MAX) { _coverSemaphore++; return; }
+  await new Promise(r => _coverQueue.push(r));
+  _coverSemaphore++;
+}
+function _releaseCover() {
+  _coverSemaphore--;
+  if (_coverQueue.length) _coverQueue.shift()();
+}
+
+async function _loadCardCover(card) {
+  const id     = card.dataset.itemId;
+  const artist = card.dataset.artist;
+  const title  = card.dataset.title;
+  const artEl  = document.getElementById(`art-${id}`);
+  const skelEl = document.getElementById(`sk-${id}`);
+  if (!artEl || !artEl.classList.contains('loading')) return; // already loaded
+
+  await _acquireCover();
+  try {
+    const url = await fetchCover(artist, title);
+    if (url && artEl) {
+      const img = new Image();
+      img.onload = () => {
+        artEl.src = url;
+        artEl.classList.remove('loading');
         if (skelEl) skelEl.classList.add('hidden');
-      }
-    }, i * 80); // 80ms stagger — laisse le sémaphore backend réguler iTunes
+      };
+      img.onerror = () => {
+        artEl.classList.remove('loading');
+        if (skelEl) skelEl.classList.add('hidden');
+      };
+      img.src = url;
+    } else {
+      artEl.classList.remove('loading');
+      if (skelEl) skelEl.classList.add('hidden');
+    }
+  } finally {
+    _releaseCover();
+  }
+}
+
+const _coverObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      _loadCardCover(entry.target);
+    }
+  });
+}, { rootMargin: '150px' });
+
+function loadCoversForCards(tracks) {
+  tracks.forEach(track => {
+    const id   = track.item_id ?? track.id;
+    const card = document.querySelector(`.track-card[data-item-id="${id}"]`);
+    if (card) _coverObserver.observe(card);
   });
 }
 
