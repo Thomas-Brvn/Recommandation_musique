@@ -200,6 +200,72 @@ aws ec2 terminate-instances --instance-ids i-xxxxx --region eu-north-1
 # Login: admin / Password: admin
 ```
 
+## Chemins AWS (S3)
+
+Le bucket principal est défini par la variable `S3_BUCKET_NAME` (par défaut: `listen-brainz-data`, région `eu-north-1`).
+
+### Structure complète du bucket S3
+
+```
+s3://listen-brainz-data/
+├── raw/
+│   ├── musicbrainz/                          # Dumps MusicBrainz bruts
+│   │   ├── artist.tar.xz
+│   │   ├── recording.tar.xz
+│   │   ├── release.tar.xz
+│   │   └── release-group.tar.xz
+│   └── listenbrainz/                         # Dumps ListenBrainz bruts
+│       ├── listenbrainz-spark-dump-*.tar     # Dump complet
+│       └── incrementals/                     # Dumps incrémentaux
+│           └── listenbrainz-listens-dump-*.tar.zst
+├── extracted/
+│   ├── musicbrainz/                          # MusicBrainz extrait (JSON)
+│   └── listenbrainz/                         # ListenBrainz extrait
+├── processed/
+│   ├── user_item_matrix.npz                  # Matrice utilisateur/item
+│   ├── mappings.json                         # Mappings IDs
+│   ├── user_mapping.json                     # Mapping utilisateurs
+│   ├── item_mapping.json                     # Mapping items (chansons)
+│   ├── train_matrix.npz                      # Matrice d'entraînement
+│   ├── test_matrix.npz                       # Matrice de test
+│   └── listenbrainz/                         # Données filtrées/traitées
+│       ├── listenbrainz-2025-only.tar.gz     # Écoutes 2025 filtrées
+│       ├── listenbrainz_sample.tar.gz        # Échantillon pour tests
+│       └── metadata-*.json                   # Métadonnées de traitement
+├── models/
+│   ├── als_model.pkl                         # Modèle ALS entraîné
+│   └── evaluation_results.json               # Résultats d'évaluation
+├── code/
+│   ├── scripts/                              # Scripts copiés sur EC2
+│   └── src/                                  # Code source copié sur EC2
+└── status/
+    ├── pipeline_completed                    # Marqueur fin de pipeline
+    ├── full_pipeline_completed               # Marqueur pipeline complet
+    └── test_pipeline_completed               # Marqueur pipeline de test
+```
+
+### Commandes rapides S3
+
+```bash
+# Lister les données brutes
+aws s3 ls s3://listen-brainz-data/raw/ --recursive --human-readable --region eu-north-1
+
+# Lister les incrémentaux ListenBrainz
+aws s3 ls s3://listen-brainz-data/raw/listenbrainz/incrementals/ --region eu-north-1
+
+# Lister les modèles
+aws s3 ls s3://listen-brainz-data/models/ --region eu-north-1
+
+# Télécharger le modèle entraîné
+aws s3 cp s3://listen-brainz-data/models/als_model.pkl . --region eu-north-1
+
+# Vérifier le statut du pipeline
+aws s3 ls s3://listen-brainz-data/status/ --region eu-north-1
+
+# Taille totale du bucket
+aws s3 ls s3://listen-brainz-data --recursive --summarize --region eu-north-1 | grep "Total Size"
+```
+
 ## Données
 
 ### MusicBrainz (~20.8 GB compressé)
