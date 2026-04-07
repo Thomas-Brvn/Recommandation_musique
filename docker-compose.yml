@@ -1,0 +1,54 @@
+services:
+
+  # ── Serveur Ollama ──────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # ── Téléchargement du modèle (one-shot) ────────────────────────────────────
+  ollama-pull:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["ollama", "pull", "llama3.2:3b"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  # ── Application FastAPI ────────────────────────────────────────────────────
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      # Ollama (pointe vers le service interne)
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.2:3b
+      # S3 / AWS (surchargés par .env si présents)
+      S3_BUCKET_MODEL: ${S3_BUCKET_MODEL:-brainz-data}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-north-1}
+    volumes:
+      # Persistance de la bibliothèque (likes / playlists)
+      - ./data:/app/data
+
+volumes:
+  ollama_data:
+    driver: local

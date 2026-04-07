@@ -1,0 +1,45 @@
+# Environnement virtuel et cache
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Données locales volumineuses
+data/processed/
+data/raw/
+models/
+
+# Notebooks & IDE
+*.ipynb
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Config locale
+.env
+config/
+
+# Scripts de déploiement non nécessaires au runtime
+scripts/
+dags/
+dashboard.py
+quick_start.sh
+setup.sh
+start_airflow.sh
+
+# Docs
+docs/
+README.md
+SUMMARY.md
+CLAUDE.md
+
+# Tests
+src/test/
+test_model.py

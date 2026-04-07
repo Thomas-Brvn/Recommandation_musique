@@ -39,7 +39,8 @@ prompt = ChatPromptTemplate.from_messages([
 # ============================================================================
 
 llm = ChatOllama(
-    model="llama3.2:3b",
+    model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+    base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
 )
 
 # Créer l'agent avec tool calling
