@@ -159,11 +159,24 @@ echo "Total lignes dans all_listens.csv: $(wc -l < data/work/all_listens.csv)"
 echo "Taille: $(du -sh data/work/all_listens.csv)"
 
 # ==========================================
-# ÉTAPE 4-6: Pipeline Python complet depuis le CSV
+# ÉTAPE 4: Télécharger le mapping de déduplication
 # ==========================================
 echo ""
 echo "=========================================="
-echo "ÉTAPE 4: Traitement Python (agrégation + entraînement)"
+echo "ÉTAPE 4: Déduplication des tracks"
+echo "=========================================="
+
+echo "Téléchargement du mapping de déduplication depuis S3..."
+aws s3 cp s3://$S3_BUCKET/processed/track_dedup_map.json data/processed/track_dedup_map.json --region eu-north-1 \
+    && echo "  Mapping téléchargé" \
+    || echo "  Mapping absent — déduplication ignorée"
+
+# ==========================================
+# ÉTAPE 5-7: Pipeline Python complet depuis le CSV
+# ==========================================
+echo ""
+echo "=========================================="
+echo "ÉTAPE 5: Traitement Python (agrégation + entraînement)"
 echo "=========================================="
 
 python3 << 'PYTHON_SCRIPT'
@@ -180,6 +193,16 @@ print("=" * 60)
 print("AGRÉGATION DES ÉCOUTES")
 print("=" * 60)
 
+# Charger le mapping de déduplication si disponible
+dedup_map = {{}}
+dedup_file = Path("data/processed/track_dedup_map.json")
+if dedup_file.exists():
+    with open(dedup_file, encoding="utf-8") as f:
+        dedup_map = json.load(f)
+    print(f"Mapping de déduplication chargé: {{len(dedup_map):,}} redirections")
+else:
+    print("Pas de mapping de déduplication")
+
 # Lire le CSV en chunks pour économiser la RAM
 print("Lecture et agrégation du CSV par chunks...")
 user_track_counts = defaultdict(lambda: defaultdict(int))
@@ -189,7 +212,9 @@ chunk_size = 1_000_000
 for chunk in pd.read_csv('data/work/all_listens.csv', header=None, names=['user', 'track'], chunksize=chunk_size, dtype=str):
     chunk = chunk.dropna()
     for row in chunk.itertuples(index=False):
-        user_track_counts[row.user][row.track] += 1
+        # Appliquer la déduplication : remplacer le track par son canonical
+        track = dedup_map.get(row.track, row.track)
+        user_track_counts[row.user][track] += 1
         total_listens += 1
     if total_listens % 10_000_000 == 0:
         print(f"  {{total_listens:,}} écoutes traitées...")

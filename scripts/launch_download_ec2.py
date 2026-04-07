@@ -145,7 +145,7 @@ def launch(ec2_client, iam_client) -> str:
         UserData=USER_DATA,
         BlockDeviceMappings=[{
             "DeviceName": "/dev/xvda",
-            "Ebs": {"VolumeSize": 20, "VolumeType": "gp3", "DeleteOnTermination": True}
+            "Ebs": {"VolumeSize": 30, "VolumeType": "gp3", "DeleteOnTermination": True}
         }],
         TagSpecifications=[{
             "ResourceType": "instance",
