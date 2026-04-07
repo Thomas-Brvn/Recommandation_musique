@@ -485,7 +485,22 @@ async def festival_chat(request: FestivalChatRequest):
     history = _festival_sessions.get(session_id, [])
 
     try:
-        answer = await asyncio.to_thread(_festival_ask, request.question, history)
+        raw = await asyncio.to_thread(_festival_ask, request.question, history)
+        # Gemini peut retourner une liste de blocs [{type, text}] ou une string
+        if isinstance(raw, list):
+            # Ne garder que les blocs de type "text" (ignorer "thinking", "executable_code", etc.)
+            answer = "".join(
+                block.get("text", "")
+                for block in raw
+                if isinstance(block, dict) and block.get("type") == "text"
+            ).strip()
+            if not answer:
+                # Fallback: concaténer tout contenu textuel disponible
+                answer = "".join(
+                    block.get("text", "") for block in raw if isinstance(block, dict)
+                ).strip()
+        else:
+            answer = str(raw)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

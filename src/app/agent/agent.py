@@ -40,7 +40,8 @@ prompt = ChatPromptTemplate.from_messages([
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
-    convert_system_message_to_human=True
+    convert_system_message_to_human=True,
+    thinking={"thinking_budget": 0},  # Désactiver le mode thinking pour éviter la troncature
 )
 
 # Créer l'agent avec tool calling
