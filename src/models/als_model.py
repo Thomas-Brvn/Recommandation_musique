@@ -265,20 +265,7 @@ class ALSRecommender:
         print(f"Modèle sauvegardé: {path}")
 
     @classmethod
-    def load(cls, path: Path, user_item_matrix: Optional[sparse.csr_matrix] = None) -> 'ALSRecommender':
-        """
-        Charge un modèle sauvegardé.
-
-        Args:
-            path: Chemin vers le fichier .pkl
-            user_item_matrix: Matrice user-item (nécessaire pour les recommandations)
-
-        Returns:
-            Instance ALSRecommender
-        """
-        with open(path, 'rb') as f:
-            state = pickle.load(f)
-
+    def _from_state(cls, state: dict, user_item_matrix: Optional[sparse.csr_matrix] = None) -> 'ALSRecommender':
         recommender = cls(
             factors=state['factors'],
             regularization=state['regularization'],
@@ -294,6 +281,31 @@ class ALSRecommender:
             recommender.user_item_matrix = user_item_matrix
             recommender.item_user_matrix = user_item_matrix.T.tocsr()
 
+        return recommender
+
+    @classmethod
+    def load_from_bytes(cls, data: bytes, user_item_matrix: Optional[sparse.csr_matrix] = None) -> 'ALSRecommender':
+        """Charge un modèle depuis des bytes (ex: stream S3)."""
+        import io
+        state = pickle.load(io.BytesIO(data))
+        return cls._from_state(state, user_item_matrix)
+
+    @classmethod
+    def load(cls, path: Path, user_item_matrix: Optional[sparse.csr_matrix] = None) -> 'ALSRecommender':
+        """
+        Charge un modèle sauvegardé.
+
+        Args:
+            path: Chemin vers le fichier .pkl
+            user_item_matrix: Matrice user-item (nécessaire pour les recommandations)
+
+        Returns:
+            Instance ALSRecommender
+        """
+        with open(path, 'rb') as f:
+            state = pickle.load(f)
+
+        recommender = cls._from_state(state, user_item_matrix)
         print(f"Modèle chargé: {path}")
         return recommender
 

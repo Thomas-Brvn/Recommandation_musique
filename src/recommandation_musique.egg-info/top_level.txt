@@ -4,5 +4,6 @@ app
 evaluate
 models
 serve
+static
 test
 train

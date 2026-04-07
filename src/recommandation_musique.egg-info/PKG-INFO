@@ -29,6 +29,7 @@ Requires-Dist: fastapi>=0.135.1
 Requires-Dist: uvicorn[standard]>=0.42.0
 Requires-Dist: websockets>=12.0
 Requires-Dist: pydantic>=2.0
+Requires-Dist: httpx>=0.27.0
 Provides-Extra: airflow
 Requires-Dist: apache-airflow>=2.5.0; extra == "airflow"
 Requires-Dist: apache-airflow-providers-amazon>=8.0.0; extra == "airflow"
