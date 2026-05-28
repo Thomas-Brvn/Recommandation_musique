@@ -22,29 +22,37 @@ class CatalogService:
             cls._instance = cls()
         return cls._instance
 
-    async def load_from_s3(self, bucket: str, key: str, region: str):
+    async def load_from_s3(self, bucket: str, key: str, region: str,
+                           mappings_key: str = "processed/mappings.json"):
         print(f"  - Catalogue: s3://{bucket}/{key}")
-        raw = await asyncio.to_thread(self._fetch_s3, bucket, key, region)
+        raw, mappings_raw = await asyncio.gather(
+            asyncio.to_thread(self._fetch_s3, bucket, key, region),
+            asyncio.to_thread(self._fetch_s3, bucket, mappings_key, region),
+        )
         dedup_map: dict = json.loads(raw)
-        self._build_catalog(dedup_map)
-        print(f"Catalogue chargé: {len(self.tracks):,} tracks uniques")
+        track_to_id: dict = json.loads(mappings_raw).get("track_to_id", {})
+        self._build_catalog(dedup_map, track_to_id)
+        print(f"Catalogue chargé: {len(self.tracks):,} tracks (alignés sur le modèle)")
 
     @staticmethod
     def _fetch_s3(bucket: str, key: str, region: str) -> bytes:
         s3 = boto3.client("s3", region_name=region)
         return s3.get_object(Bucket=bucket, Key=key)["Body"].read()
 
-    def _build_catalog(self, dedup_map: dict):
+    def _build_catalog(self, dedup_map: dict, track_to_id: dict):
         canonical_names = sorted(set(dedup_map.values()))
         self.tracks = []
-        for i, name in enumerate(canonical_names):
+        for name in canonical_names:
+            item_id = track_to_id.get(name)
+            if item_id is None:
+                continue  # track absente du modèle → on ne l'affiche pas
             if " - " in name:
                 artist, title = name.split(" - ", 1)
             else:
                 artist, title = "Unknown", name
             self.tracks.append(
                 {
-                    "id": i,
+                    "id": item_id,
                     "canonical_name": name,
                     "artist": artist.strip(),
                     "title": title.strip(),
