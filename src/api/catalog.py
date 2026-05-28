@@ -1,12 +1,12 @@
 """
 Service de catalogue musical - charge et indexe les tracks depuis track_dedup_map.json.
-Entièrement async : boto3 exécuté dans un thread via asyncio.to_thread.
+Entièrement async : google-cloud-storage exécuté dans un thread via asyncio.to_thread.
 """
 import asyncio
 import json
 from typing import List, Optional
 
-import boto3
+from google.cloud import storage
 
 
 class CatalogService:
@@ -22,12 +22,12 @@ class CatalogService:
             cls._instance = cls()
         return cls._instance
 
-    async def load_from_s3(self, bucket: str, key: str, region: str,
-                           mappings_key: str = "processed/mappings.json"):
-        print(f"  - Catalogue: s3://{bucket}/{key}")
+    async def load_from_gcs(self, bucket: str, key: str, project: str,
+                            mappings_key: str = "processed/mappings.json"):
+        print(f"  - Catalogue: gs://{bucket}/{key}")
         raw, mappings_raw = await asyncio.gather(
-            asyncio.to_thread(self._fetch_s3, bucket, key, region),
-            asyncio.to_thread(self._fetch_s3, bucket, mappings_key, region),
+            asyncio.to_thread(self._fetch_gcs, bucket, key, project),
+            asyncio.to_thread(self._fetch_gcs, bucket, mappings_key, project),
         )
         dedup_map: dict = json.loads(raw)
         track_to_id: dict = json.loads(mappings_raw).get("track_to_id", {})
@@ -35,9 +35,9 @@ class CatalogService:
         print(f"Catalogue chargé: {len(self.tracks):,} tracks (alignés sur le modèle)")
 
     @staticmethod
-    def _fetch_s3(bucket: str, key: str, region: str) -> bytes:
-        s3 = boto3.client("s3", region_name=region)
-        return s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+    def _fetch_gcs(bucket: str, key: str, project: str) -> bytes:
+        client = storage.Client(project=project)
+        return client.bucket(bucket).blob(key).download_as_bytes()
 
     def _build_catalog(self, dedup_map: dict, track_to_id: dict):
         canonical_names = sorted(set(dedup_map.values()))

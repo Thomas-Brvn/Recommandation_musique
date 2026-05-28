@@ -30,7 +30,7 @@ def get_ubuntu_ami(region):
     print(f"🔍 Recherche de l'AMI Ubuntu 22.04 pour {region}...")
 
     cmd = f"""aws ec2 describe-images \
-        --region {region} \
+        \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
                   "Name=state,Values=available" \
@@ -53,7 +53,7 @@ def get_ubuntu_ami(region):
 
 def load_config():
     """Charge la configuration AWS"""
-    config_file = Path("config/aws_config.json")
+    config_file = Path("config/gcp_config.json")
     if config_file.exists():
         with open(config_file, 'r') as f:
             return json.load(f)
@@ -91,7 +91,7 @@ cd /data
 echo ""
 echo "Étape 1/4: Téléchargement du tar complet depuis S3..."
 echo "=========================================="
-aws s3 cp "s3://$BUCKET_NAME/raw/listenbrainz/$INPUT_FILE" /data/$INPUT_FILE --region eu-north-1
+gsutil cp "gs://$BUCKET_NAME/raw/listenbrainz/$INPUT_FILE" /data/$INPUT_FILE
 
 if [ $? -ne 0 ]; then
     echo "✗ Erreur téléchargement depuis S3"
@@ -177,7 +177,7 @@ SAMPLE_SIZE=$(du -h listenbrainz_sample.tar.gz | cut -f1)
 echo "✓ Échantillon créé: $SAMPLE_SIZE"
 
 # Upload vers S3
-aws s3 cp listenbrainz_sample.tar.gz "s3://$BUCKET_NAME/processed/listenbrainz/listenbrainz_sample.tar.gz" --region eu-north-1
+gsutil cp listenbrainz_sample.tar.gz "gs://$BUCKET_NAME/processed/listenbrainz/listenbrainz_sample.tar.gz"
 
 if [ $? -eq 0 ]; then
     echo "✓ Upload réussi!"
@@ -194,7 +194,7 @@ if [ $? -eq 0 ]; then
 }}
 EOF
 
-    aws s3 cp /data/sample_metadata.json "s3://$BUCKET_NAME/processed/listenbrainz/sample_metadata.json" --region eu-north-1
+    gsutil cp /data/sample_metadata.json "gs://$BUCKET_NAME/processed/listenbrainz/sample_metadata.json"
 
     echo ""
     echo "=========================================="
@@ -202,11 +202,11 @@ EOF
     echo "=========================================="
     echo "Taille: $SAMPLE_SIZE"
     echo "Fichiers Parquet: $PARQUET_COUNT"
-    echo "Localisation: s3://$BUCKET_NAME/processed/listenbrainz/listenbrainz_sample.tar.gz"
+    echo "Localisation: gs://$BUCKET_NAME/processed/listenbrainz/listenbrainz_sample.tar.gz"
     echo "=========================================="
 
     echo "SUCCESS" > /tmp/sample-status
-    aws s3 cp /tmp/sample-status "s3://$BUCKET_NAME/processed/.sample-completed"
+    gsutil cp /tmp/sample-status "gs://$BUCKET_NAME/processed/.sample-completed"
 else
     echo "✗ Erreur upload vers S3"
     exit 1
@@ -246,7 +246,7 @@ def main():
         print("❌ Configuration non trouvée")
         sys.exit(1)
 
-    bucket_name = config.get("bucket_name")
+    bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
     region = config.get("region")
 
     print(f"\n✅ Configuration")
@@ -285,7 +285,7 @@ def main():
         --iam-instance-profile Name={instance_profile} \
         --user-data file://{user_data_file} \
         --block-device-mappings '[{{"DeviceName":"/dev/sda1","Ebs":{{"VolumeSize":150,"VolumeType":"gp3","DeleteOnTermination":true}}}}]' \
-        --region {region}"""
+       """
 
     stdout, stderr, code = run_aws_command(cmd, check=False)
 
@@ -312,13 +312,13 @@ def main():
     print("📋 Pour suivre la progression:")
     print("")
     print("  # Voir les logs:")
-    print(f"  aws ec2 get-console-output --instance-id {instance_id} --region {region} --output text | tail -100")
+    print(f"  aws ec2 get-console-output --instance-id {instance_id} --output text | tail -100")
     print("")
     print("  # Vérifier le résultat sur S3:")
-    print(f"  aws s3 ls s3://{bucket_name}/processed/listenbrainz/ --region {region} --human-readable")
+    print(f"  gsutil ls gs://{bucket_name}/processed/listenbrainz/ --human-readable")
     print("")
     print("  # Terminer l'instance quand c'est fini:")
-    print(f"  aws ec2 terminate-instances --instance-ids {instance_id} --region {region}")
+    print(f"  aws ec2 terminate-instances --instance-ids {instance_id}")
     print("")
     print("⏱️  Le traitement prendra ~30-45 minutes")
     print("✅ Vous verrez 'listenbrainz_sample.tar.gz' sur S3 quand c'est terminé")

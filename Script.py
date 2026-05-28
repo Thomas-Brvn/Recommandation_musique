@@ -2,8 +2,8 @@
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
-from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
+
+
 from datetime import datetime, timedelta
 
 # Configuration
@@ -12,7 +12,9 @@ LISTENBRAINZ_BASE_URL = "https://data.metabrainz.org/pub/musicbrainz/listenbrain
 
 MB_TABLES = ["artist", "recording", "release", "release-group"]
 
-S3_BUCKET = "your-bucket"
+GCS_PROCESSED = "brainz-processed"
+GCS_RAW_LB   = "brainz-raw-listenbrainz"
+GCS_RAW_MB   = "brainz-raw-musicbrainz"
 S3_RAW_PREFIX = "raw"
 S3_EXTRACTED_PREFIX = "extracted"
 S3_PROCESSED_PREFIX = "processed"
@@ -48,7 +50,7 @@ with DAG(
             checksum_url = f"{MUSICBRAINZ_BASE_URL}SHA256SUMS"
             
             local_path = f"/tmp/{table}.tar.xz"
-            s3_path = f"s3://{S3_BUCKET}/{S3_RAW_PREFIX}/mb/{execution_date}/{table}.tar.xz"
+            s3_path = f"gs://{S3_BUCKET}/{S3_RAW_PREFIX}/mb/{execution_date}/{table}.tar.xz"
             
             # Download
             subprocess.run(['wget', '-q', '-O', local_path, url], check=True)
@@ -88,7 +90,7 @@ with DAG(
         
         url = f"{LISTENBRAINZ_BASE_URL}{latest_dump}"
         local_path = f"/tmp/{latest_dump}"
-        s3_path = f"s3://{S3_BUCKET}/{S3_RAW_PREFIX}/lb/{execution_date}/{latest_dump}"
+        s3_path = f"gs://{S3_BUCKET}/{S3_RAW_PREFIX}/lb/{execution_date}/{latest_dump}"
         
         # Download (peut prendre plusieurs heures pour ~50-100GB)
         subprocess.run(['wget', '-q', '-O', local_path, url], check=True)
@@ -114,9 +116,9 @@ with DAG(
                     'spark-submit',
                     '--deploy-mode', 'cluster',
                     '--master', 'yarn',
-                    f's3://{S3_BUCKET}/scripts/extract_musicbrainz.py',
-                    '--input', f's3://{S3_BUCKET}/{S3_RAW_PREFIX}/mb/{{{{ ds }}}}/',
-                    '--output', f's3://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/mb/{{{{ ds }}}}/',
+                    f'gs://{S3_BUCKET}/scripts/extract_musicbrainz.py',
+                    '--input', f'gs://{S3_BUCKET}/{S3_RAW_PREFIX}/mb/{{{{ ds }}}}/',
+                    '--output', f'gs://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/mb/{{{{ ds }}}}/',
                 ]
             }
         },
@@ -129,9 +131,9 @@ with DAG(
                     'spark-submit',
                     '--deploy-mode', 'cluster',
                     '--master', 'yarn',
-                    f's3://{S3_BUCKET}/scripts/extract_listenbrainz.py',
-                    '--input', f's3://{S3_BUCKET}/{S3_RAW_PREFIX}/lb/{{{{ ds }}}}/',
-                    '--output', f's3://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/lb/{{{{ ds }}}}/',
+                    f'gs://{S3_BUCKET}/scripts/extract_listenbrainz.py',
+                    '--input', f'gs://{S3_BUCKET}/{S3_RAW_PREFIX}/lb/{{{{ ds }}}}/',
+                    '--output', f'gs://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/lb/{{{{ ds }}}}/',
                 ]
             }
         },
@@ -147,10 +149,10 @@ with DAG(
                     '--conf', 'spark.sql.shuffle.partitions=200',
                     '--conf', 'spark.driver.memory=8g',
                     '--conf', 'spark.executor.memory=16g',
-                    f's3://{S3_BUCKET}/scripts/process_data.py',
-                    '--mb-input', f's3://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/mb/{{{{ ds }}}}/',
-                    '--lb-input', f's3://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/lb/{{{{ ds }}}}/',
-                    '--output', f's3://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/{{{{ ds }}}}/',
+                    f'gs://{S3_BUCKET}/scripts/process_data.py',
+                    '--mb-input', f'gs://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/mb/{{{{ ds }}}}/',
+                    '--lb-input', f'gs://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/lb/{{{{ ds }}}}/',
+                    '--output', f'gs://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/{{{{ ds }}}}/',
                 ]
             }
         },
@@ -163,9 +165,9 @@ with DAG(
                     'spark-submit',
                     '--deploy-mode', 'cluster',
                     '--master', 'yarn',
-                    f's3://{S3_BUCKET}/scripts/generate_features.py',
-                    '--input', f's3://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/{{{{ ds }}}}/',
-                    '--output', f's3://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/features/{{{{ ds }}}}/',
+                    f'gs://{S3_BUCKET}/scripts/generate_features.py',
+                    '--input', f'gs://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/{{{{ ds }}}}/',
+                    '--output', f'gs://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/features/{{{{ ds }}}}/',
                 ]
             }
         },

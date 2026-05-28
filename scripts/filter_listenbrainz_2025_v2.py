@@ -33,7 +33,7 @@ def get_ubuntu_ami(region):
     print(f"🔍 Recherche de l'AMI Ubuntu 22.04 pour {region}...")
 
     cmd = f"""aws ec2 describe-images \
-        --region {region} \
+        \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
                   "Name=state,Values=available" \
@@ -58,7 +58,7 @@ def get_ubuntu_ami(region):
 
 def load_config():
     """Charge la configuration AWS"""
-    config_file = Path("config/aws_config.json")
+    config_file = Path("config/gcp_config.json")
     if config_file.exists():
         with open(config_file, 'r') as f:
             return json.load(f)
@@ -106,7 +106,7 @@ echo "=========================================="
 echo "Fichier: $INPUT_FILE"
 echo "Taille: ~127 GB"
 
-aws s3 cp "s3://$BUCKET_NAME/raw/listenbrainz/$INPUT_FILE" /data/input/$INPUT_FILE --region {}
+gsutil cp "gs://$BUCKET_NAME/raw/listenbrainz/$INPUT_FILE" /data/input/$INPUT_FILE --region {}
 
 if [ $? -ne 0 ]; then
     echo "✗ Erreur téléchargement depuis S3"
@@ -240,7 +240,7 @@ SIZE=$(du -h listenbrainz-2025-only.tar.gz | cut -f1)
 echo "Taille du fichier compressé: $SIZE"
 
 # Upload vers S3
-aws s3 cp listenbrainz-2025-only.tar.gz "s3://$BUCKET_NAME/processed/listenbrainz/listenbrainz-2025-only.tar.gz" --region {}
+gsutil cp listenbrainz-2025-only.tar.gz "gs://$BUCKET_NAME/processed/listenbrainz/listenbrainz-2025-only.tar.gz" --region {}
 
 if [ $? -ne 0 ]; then
     echo "✗ Erreur upload S3"
@@ -263,7 +263,7 @@ cat > /tmp/metadata-2025.json << METAEOF
 }}
 METAEOF
 
-aws s3 cp /tmp/metadata-2025.json "s3://$BUCKET_NAME/processed/listenbrainz/metadata-2025-v2.json" --region {}
+gsutil cp /tmp/metadata-2025.json "gs://$BUCKET_NAME/processed/listenbrainz/metadata-2025-v2.json" --region {}
 
 echo "=========================================="
 echo "Traitement terminé avec succès"
@@ -272,7 +272,7 @@ echo "=========================================="
 
 # Créer un fichier de statut
 echo "COMPLETED" > /tmp/filter-status
-aws s3 cp /tmp/filter-status "s3://$BUCKET_NAME/processed/listenbrainz/.filter-2025-completed" --region {}
+gsutil cp /tmp/filter-status "gs://$BUCKET_NAME/processed/listenbrainz/.filter-2025-completed" --region {}
 """
 
     return script.format(bucket_name, DEFAULT_REGION, DEFAULT_REGION, DEFAULT_REGION, DEFAULT_REGION)
@@ -320,7 +320,7 @@ def create_instance(region, bucket_name):
         --iam-instance-profile Name={instance_profile} \
         --user-data file://{user_data_file} \
         --block-device-mappings '[{{"DeviceName":"/dev/sda1","Ebs":{{"VolumeSize":300,"VolumeType":"gp3","DeleteOnTermination":true}}}}]' \
-        --region {region}"""
+       """
 
     stdout, stderr, code = run_aws_command(cmd, check=False)
 
@@ -344,11 +344,11 @@ def monitor_instance(instance_id, region):
     print(f"Région: {region}")
     print("\n📝 Commandes utiles:")
     print(f"\n  # Voir les logs en temps réel:")
-    print(f"  aws ec2 get-console-output --instance-id {instance_id} --region {region} --output text | tail -50")
+    print(f"  aws ec2 get-console-output --instance-id {instance_id} --output text | tail -50")
     print(f"\n  # Voir le statut:")
-    print(f"  aws ec2 describe-instances --instance-ids {instance_id} --region {region}")
+    print(f"  aws ec2 describe-instances --instance-ids {instance_id}")
     print(f"\n  # Terminer l'instance:")
-    print(f"  aws ec2 terminate-instances --instance-ids {instance_id} --region {region}")
+    print(f"  aws ec2 terminate-instances --instance-ids {instance_id}")
 
     print("\n⏱️  Durée estimée:")
     print("  • Téléchargement S3 -> EC2: 30-60 min")
@@ -378,7 +378,7 @@ def main():
     # Charger la config
     config = load_config()
     if config:
-        bucket_name = config.get("bucket_name")
+        bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
         region = config.get("region", DEFAULT_REGION)
         print(f"✅ Configuration chargée")
         print(f"   Bucket: {bucket_name}")

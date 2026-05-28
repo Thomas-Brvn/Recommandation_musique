@@ -1,6 +1,6 @@
 """
 Service de recommandation pour l'API.
-Entièrement async : boto3 et calculs ALS exécutés dans un thread via asyncio.to_thread.
+Entièrement async : google-cloud-storage et calculs ALS exécutés dans un thread via asyncio.to_thread.
 """
 import asyncio
 import io
@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
-import boto3
+from google.cloud import storage
 from scipy import sparse
 
 import sys
@@ -34,24 +34,24 @@ class RecommendationService:
             cls._instance = cls()
         return cls._instance
 
-    async def load_from_s3(
+    async def load_from_gcs(
         self,
         bucket: str,
         model_key: str = "models/als_model.pkl",
         matrix_key: str = "processed/user_item_matrix.npz",
         mappings_key: str = "processed/mappings.json",
-        region: str = "eu-north-1",
+        project: str = "projetetude-497218",
     ):
-        """Charge le modèle et les données directement depuis S3 (non-bloquant)."""
-        print("Chargement depuis S3...")
+        """Charge le modèle et les données directement depuis GCS (non-bloquant)."""
+        print("Chargement depuis GCS...")
         matrix_bytes, model_bytes, mappings_bytes = await asyncio.gather(
-            asyncio.to_thread(self._s3_read, bucket, matrix_key, region),
-            asyncio.to_thread(self._s3_read, bucket, model_key, region),
-            asyncio.to_thread(self._s3_read, bucket, mappings_key, region),
+            asyncio.to_thread(self._gcs_read, bucket, matrix_key, project),
+            asyncio.to_thread(self._gcs_read, bucket, model_key, project),
+            asyncio.to_thread(self._gcs_read, bucket, mappings_key, project),
         )
-        print(f"  - Matrice: s3://{bucket}/{matrix_key}")
-        print(f"  - Modèle: s3://{bucket}/{model_key}")
-        print(f"  - Mappings: s3://{bucket}/{mappings_key}")
+        print(f"  - Matrice: gs://{bucket}/{matrix_key}")
+        print(f"  - Modèle: gs://{bucket}/{model_key}")
+        print(f"  - Mappings: gs://{bucket}/{mappings_key}")
 
         # Désérialisation dans un thread (CPU-bound)
         self.user_item_matrix, self.model, self.user_name_to_id = await asyncio.gather(
@@ -91,9 +91,9 @@ class RecommendationService:
         print(f"Service chargé: {self.user_item_matrix.shape[0]:,} users, {self.user_item_matrix.shape[1]:,} items")
 
     @staticmethod
-    def _s3_read(bucket: str, key: str, region: str) -> bytes:
-        s3 = boto3.client("s3", region_name=region)
-        return s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+    def _gcs_read(bucket: str, key: str, project: str) -> bytes:
+        client = storage.Client(project=project)
+        return client.bucket(bucket).blob(key).download_as_bytes()
 
     def _ensure_loaded(self):
         if not self.is_loaded:

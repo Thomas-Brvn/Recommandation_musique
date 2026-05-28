@@ -27,7 +27,7 @@ def run_aws_command(cmd, check=True):
 def get_ubuntu_ami(region):
     print(f"Recherche de l'AMI Ubuntu 22.04 pour {region}...")
     cmd = f"""aws ec2 describe-images \
-        --region {region} \
+        \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
                   "Name=state,Values=available" \
@@ -46,7 +46,7 @@ def get_ubuntu_ami(region):
     return None
 
 def load_config():
-    config_file = Path("config/aws_config.json")
+    config_file = Path("config/gcp_config.json")
     if config_file.exists():
         with open(config_file, 'r') as f:
             return json.load(f)
@@ -172,7 +172,7 @@ NUM_FILES=$(find . -name "*.listens" | wc -l)
 echo "Nombre de fichiers .listens: $NUM_FILES"
 
 # Upload vers S3
-aws s3 cp listenbrainz-2025-listens.tar.gz "s3://$BUCKET_NAME/processed/listenbrainz/listenbrainz-2025-listens.tar.gz" --region $REGION
+gsutil cp listenbrainz-2025-listens.tar.gz "gs://$BUCKET_NAME/processed/listenbrainz/listenbrainz-2025-listens.tar.gz"
 
 if [ $? -ne 0 ]; then
     echo "Erreur upload S3"
@@ -194,7 +194,7 @@ cat > /tmp/metadata-2025-listens.json << METAEOF
 }}
 METAEOF
 
-aws s3 cp /tmp/metadata-2025-listens.json "s3://$BUCKET_NAME/processed/listenbrainz/metadata-2025-listens.json" --region $REGION
+gsutil cp /tmp/metadata-2025-listens.json "gs://$BUCKET_NAME/processed/listenbrainz/metadata-2025-listens.json"
 
 echo "=========================================="
 echo "Traitement termine avec succes"
@@ -202,7 +202,7 @@ echo "Date: $(date)"
 echo "=========================================="
 
 echo "COMPLETED" > /tmp/download-status
-aws s3 cp /tmp/download-status "s3://$BUCKET_NAME/processed/listenbrainz/.listens-2025-completed" --region $REGION
+gsutil cp /tmp/download-status "gs://$BUCKET_NAME/processed/listenbrainz/.listens-2025-completed"
 """
     return script.format(bucket_name, DEFAULT_REGION)
 
@@ -240,7 +240,7 @@ def create_instance(region, bucket_name):
         --iam-instance-profile Name={instance_profile} \
         --user-data file://{user_data_file} \
         --block-device-mappings '[{{"DeviceName":"/dev/sda1","Ebs":{{"VolumeSize":300,"VolumeType":"gp3","DeleteOnTermination":true}}}}]' \
-        --region {region}"""
+       """
 
     stdout, stderr, code = run_aws_command(cmd, check=False)
     if code != 0:
@@ -259,7 +259,7 @@ def main():
 
     config = load_config()
     if config:
-        bucket_name = config.get("bucket_name")
+        bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
         region = config.get("region", DEFAULT_REGION)
         print(f"Configuration chargee")
         print(f"   Bucket: {bucket_name}")
@@ -291,9 +291,9 @@ def main():
         print(f"Instance ID: {instance_id}")
         print(f"\nCommandes utiles:")
         print(f"  # Voir les logs:")
-        print(f"  aws ec2 get-console-output --instance-id {instance_id} --region {region} --output text | tail -50")
+        print(f"  aws ec2 get-console-output --instance-id {instance_id} --output text | tail -50")
         print(f"\n  # Terminer l'instance:")
-        print(f"  aws ec2 terminate-instances --instance-ids {instance_id} --region {region}")
+        print(f"  aws ec2 terminate-instances --instance-ids {instance_id}")
         print("\nDuree estimee: 3-5 heures")
         print("=" * 60)
 

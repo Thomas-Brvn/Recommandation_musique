@@ -8,12 +8,12 @@ echo "╚═══════════════════════�
 echo ""
 echo "Que souhaitez-vous faire?"
 echo ""
-echo "  1. Configurer AWS S3 (première fois)"
-echo "  2. Télécharger via EC2 -> S3 (Recommandé, pas de download local)"
+echo "  1. Configurer GCS (première fois)"
+echo "  2. Télécharger via GCE -> GCS (Recommandé, pas de download local)"
 echo "  3. Télécharger localement: MusicBrainz (~7 GB)"
 echo "  4. Télécharger localement: ListenBrainz (~100 GB)"
-echo "  5. Uploader les données locales vers S3"
-echo "  6. Monitorer l'instance EC2"
+echo "  5. Uploader les données locales vers GCS"
+echo "  6. Monitorer l'instance GCE"
 echo "  7. Démarrer Airflow (webserver + scheduler)"
 echo "  8. Afficher les informations du projet"
 echo ""
@@ -22,14 +22,14 @@ read -p "Votre choix (1-8): " choice
 case $choice in
   1)
     echo ""
-    echo "Configuration d'AWS S3..."
-    uv run python scripts/setup_aws_s3.py
+    echo "Configuration de GCS..."
+    uv run python scripts/setup_gcs.py
     ;;
   2)
     echo ""
-    echo "Téléchargement via EC2 -> S3..."
-    echo "Cette méthode télécharge directement vers S3 (pas sur votre machine)"
-    uv run python scripts/download_to_s3_via_ec2.py
+    echo "Téléchargement via GCE -> GCS..."
+    echo "Cette méthode télécharge directement vers GCS (pas sur votre machine)"
+    uv run python scripts/download_to_gcs_via_gce.py
     ;;
   3)
     echo ""
@@ -49,13 +49,13 @@ case $choice in
     ;;
   5)
     echo ""
-    echo "Upload des données locales vers S3..."
-    uv run python scripts/upload_to_s3.py
+    echo "Upload des données locales vers GCS..."
+    uv run python scripts/upload_to_gcs.py
     ;;
   6)
     echo ""
-    echo "Monitoring de l'instance EC2..."
-    uv run python scripts/monitor_ec2_download.py
+    echo "Monitoring de l'instance GCE..."
+    uv run python scripts/monitor_gce_download.py
     ;;
   7)
     echo ""
@@ -78,25 +78,20 @@ case $choice in
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
     echo "Structure:"
-    echo "  scripts/          - Scripts Python pour AWS"
+    echo "  scripts/          - Scripts Python pour GCP"
     echo "  dags/             - DAGs Airflow"
     echo "  data/             - Données téléchargées (local)"
-    echo "  config/           - Configuration AWS"
-    echo ""
-    echo "Guides disponibles:"
-    echo "  README.md         - Guide général"
-    echo "  docs/GUIDE_AWS.md - Guide AWS S3"
-    echo "  docs/GUIDE_EC2.md - Guide EC2 (téléchargement direct)"
+    echo "  config/           - Configuration GCP"
     echo ""
     echo "Liens utiles:"
     echo "  Airflow UI: http://localhost:8080"
-    echo "  AWS Console: https://console.aws.amazon.com/s3"
+    echo "  GCS Console: https://console.cloud.google.com/storage/browser"
     echo ""
-    echo "Workflow recommandé (avec EC2):"
-    echo "  1. Configurer AWS S3 (option 1)"
-    echo "  2. Télécharger via EC2 (option 2) - MusicBrainz + ListenBrainz"
-    echo "  3. Monitorer l'EC2 (option 6)"
-    echo "  4. Terminer l'instance EC2 quand c'est fini"
+    echo "Workflow recommandé (avec GCE):"
+    echo "  1. Configurer GCS (option 1)"
+    echo "  2. Télécharger via GCE (option 2) - MusicBrainz + ListenBrainz"
+    echo "  3. Monitorer la GCE (option 6)"
+    echo "  4. L'instance GCE s'arrête automatiquement"
     echo ""
     ;;
   *)

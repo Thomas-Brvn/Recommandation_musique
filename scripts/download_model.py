@@ -8,7 +8,7 @@ import os
 import argparse
 from pathlib import Path
 
-import boto3
+from google.cloud import storage
 from botocore.exceptions import ClientError
 
 # Configuration
@@ -53,7 +53,7 @@ def download_model(s3_client, bucket: str):
     # Vérifier que le pipeline est terminé
     if not check_pipeline_completed(s3_client, bucket):
         print("⚠️  Le pipeline n'est pas encore terminé!")
-        print(f"   Vérifie le statut sur S3: aws s3 ls s3://{bucket}/status/")
+        print(f"   Vérifie le statut sur S3: gsutil ls gs://{bucket}/status/")
         return False
 
     print(f"\n✅ Pipeline terminé. Téléchargement des fichiers...\n")
@@ -125,7 +125,7 @@ def main():
 
     args = parser.parse_args()
 
-    s3_client = boto3.client('s3', region_name=args.region)
+    s3_client = storage.Client(project=os.getenv('GCP_PROJECT_ID', 'projetetude-497218'))
 
     if args.results:
         show_evaluation_results(s3_client, args.bucket)

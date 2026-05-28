@@ -27,7 +27,7 @@ def get_ubuntu_ami(region):
     print(f"🔍 Recherche de l'AMI Ubuntu 22.04 pour {region}...")
 
     cmd = f"""aws ec2 describe-images \
-        --region {region} \
+        \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
                   "Name=state,Values=available" \
@@ -100,7 +100,7 @@ for table in $MISSING_FILES; do
         echo "✓ $table téléchargé ($FILE_SIZE)"
 
         echo "Upload vers S3..."
-        aws s3 cp "/data/musicbrainz/${{table}}.tar.xz" "s3://$BUCKET_NAME/raw/musicbrainz/${{table}}.tar.xz"
+        gsutil cp "/data/musicbrainz/${{table}}.tar.xz" "gs://$BUCKET_NAME/raw/musicbrainz/${{table}}.tar.xz"
 
         if [ $? -eq 0 ]; then
             echo "✓ $table uploadé vers S3"
@@ -122,14 +122,14 @@ echo "=========================================="
 
 # Créer un marqueur de fin
 echo "COMPLETED_MISSING" > /tmp/download-status
-aws s3 cp /tmp/download-status "s3://$BUCKET_NAME/raw/.download-missing-completed"
+gsutil cp /tmp/download-status "gs://$BUCKET_NAME/raw/.download-missing-completed"
 """
 
     return script
 
 def load_config():
     """Charge la configuration AWS"""
-    config_file = Path("config/aws_config.json")
+    config_file = Path("config/gcp_config.json")
     if config_file.exists():
         with open(config_file, 'r') as f:
             return json.load(f)
@@ -165,7 +165,7 @@ def create_instance(region, bucket_name):
         --iam-instance-profile Name={instance_profile} \
         --user-data file://{user_data_file} \
         --block-device-mappings '[{{"DeviceName":"/dev/sda1","Ebs":{{"VolumeSize":20,"VolumeType":"gp3","DeleteOnTermination":true}}}}]' \
-        --region {region}"""
+       """
 
     stdout, stderr, code = run_aws_command(cmd, check=False)
 
@@ -197,7 +197,7 @@ def main():
         print("❌ Configuration non trouvée")
         sys.exit(1)
 
-    bucket_name = config.get("bucket_name")
+    bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
     region = config.get("region")
 
     print(f"✅ Configuration chargée")

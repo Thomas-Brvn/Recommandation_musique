@@ -44,20 +44,21 @@ def load_env_file(env_path: Optional[str] = None) -> dict:
 
     return env_vars
 
-def get_aws_config() -> dict:
+def get_gcp_config() -> dict:
     """
-    Récupère la configuration AWS depuis les variables d'environnement
+    Récupère la configuration GCP depuis les variables d'environnement
 
     Returns:
-        dict: Configuration AWS
+        dict: Configuration GCP
     """
     load_env_file()
 
     return {
-        'aws_access_key_id': os.getenv('AWS_ACCESS_KEY_ID'),
-        'aws_secret_access_key': os.getenv('AWS_SECRET_ACCESS_KEY'),
-        'region': os.getenv('AWS_DEFAULT_REGION', 'eu-north-1'),
-        'bucket_name': os.getenv('S3_BUCKET_NAME', 'listen-brainz-data')
+        'project_id': os.getenv('GCP_PROJECT_ID', 'projetetude-497218'),
+        'region': os.getenv('GCP_REGION', 'europe-north1'),
+        'bucket_raw_lb': os.getenv('GCS_BUCKET_RAW_LB', 'brainz-raw-listenbrainz'),
+        'bucket_raw_mb': os.getenv('GCS_BUCKET_RAW_MB', 'brainz-raw-musicbrainz'),
+        'bucket_processed': os.getenv('GCS_BUCKET_PROCESSED', 'brainz-processed'),
     }
 
 if __name__ == "__main__":

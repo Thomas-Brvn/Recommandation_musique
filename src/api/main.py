@@ -45,13 +45,13 @@ except Exception as _e:
 
 _festival_sessions: dict[str, list] = {}
 
-# Configuration S3
-S3_BUCKET = os.getenv("S3_BUCKET_MODEL", "brainz-data")
-S3_REGION = os.getenv("AWS_DEFAULT_REGION", "eu-north-1")
-S3_MODEL_KEY = os.getenv("S3_MODEL_KEY", "models/als_model.pkl")
-S3_MATRIX_KEY = os.getenv("S3_MATRIX_KEY", "processed/user_item_matrix.npz")
-S3_MAPPINGS_KEY = os.getenv("S3_MAPPINGS_KEY", "processed/mappings.json")
-S3_CATALOG_KEY = os.getenv("S3_CATALOG_KEY", "processed/track_dedup_map.json")
+# Configuration GCS
+GCS_BUCKET  = os.getenv("GCS_BUCKET_PROCESSED", "brainz-processed")
+GCP_PROJECT = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
+S3_MODEL_KEY    = os.getenv("S3_MODEL_KEY",    "models/als_model.pkl")
+S3_MATRIX_KEY   = os.getenv("S3_MATRIX_KEY",   "processed/user_item_matrix.npz")
+S3_MAPPINGS_KEY = os.getenv("S3_MAPPINGS_KEY",  "processed/mappings.json")
+S3_CATALOG_KEY  = os.getenv("S3_CATALOG_KEY",   "processed/track_dedup_map.json")
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -142,14 +142,14 @@ library  = LibraryService.get_instance()
 
 
 async def _load_model():
-    """Charge le modèle depuis S3 (prioritaire) ou depuis le disque local."""
-    if S3_BUCKET:
-        await service.load_from_s3(
-            bucket=S3_BUCKET,
+    """Charge le modèle depuis GCS (prioritaire) ou depuis le disque local."""
+    if GCS_BUCKET:
+        await service.load_from_gcs(
+            bucket=GCS_BUCKET,
             model_key=S3_MODEL_KEY,
             matrix_key=S3_MATRIX_KEY,
             mappings_key=S3_MAPPINGS_KEY,
-            region=S3_REGION,
+            project=GCP_PROJECT,
         )
     elif MODEL_PATH.exists() and MATRIX_PATH.exists():
         await service.load(
@@ -160,16 +160,16 @@ async def _load_model():
     else:
         raise FileNotFoundError(
             "Aucune source de modèle disponible. "
-            "Définissez S3_BUCKET_MODEL ou placez les fichiers localement."
+            "Définissez GCS_BUCKET_PROCESSED ou placez les fichiers localement."
         )
 
 
 async def _load_catalog():
-    """Charge le catalogue de tracks depuis S3."""
-    if S3_BUCKET:
-        await catalog.load_from_s3(bucket=S3_BUCKET, key=S3_CATALOG_KEY, region=S3_REGION)
+    """Charge le catalogue de tracks depuis GCS."""
+    if GCS_BUCKET:
+        await catalog.load_from_gcs(bucket=GCS_BUCKET, key=S3_CATALOG_KEY, project=GCP_PROJECT)
     else:
-        raise FileNotFoundError("S3_BUCKET_MODEL requis pour charger le catalogue.")
+        raise FileNotFoundError("GCS_BUCKET_PROCESSED requis pour charger le catalogue.")
 
 
 @app.on_event("startup")

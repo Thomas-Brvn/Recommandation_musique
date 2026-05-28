@@ -1,0 +1,7 @@
+{
+  "project_id": "projetetude-497218",
+  "region": "europe-north1",
+  "bucket_raw_lb": "brainz-raw-listenbrainz",
+  "bucket_raw_mb": "brainz-raw-musicbrainz",
+  "bucket_processed": "brainz-processed"
+}

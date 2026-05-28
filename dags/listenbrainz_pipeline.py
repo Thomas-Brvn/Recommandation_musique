@@ -2,9 +2,14 @@
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
-from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
+from airflow.providers.google.cloud.operators.dataproc import (
+    DataprocCreateClusterOperator,
+    DataprocSubmitJobOperator,
+    DataprocDeleteClusterOperator,
+)
+from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 from datetime import datetime, timedelta
+import os
 
 # Configuration
 MUSICBRAINZ_BASE_URL = "https://data.metabrainz.org/pub/musicbrainz/data/json-dumps/"
@@ -12,10 +17,12 @@ LISTENBRAINZ_BASE_URL = "https://data.metabrainz.org/pub/musicbrainz/listenbrain
 
 MB_TABLES = ["artist", "recording", "release", "release-group"]
 
-S3_BUCKET = "your-bucket"
-S3_RAW_PREFIX = "raw"
-S3_EXTRACTED_PREFIX = "extracted"
-S3_PROCESSED_PREFIX = "processed"
+GCP_PROJECT    = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
+GCP_REGION     = os.getenv("GCP_REGION", "europe-north1")
+GCS_RAW_LB     = os.getenv("GCS_BUCKET_RAW_LB", "brainz-raw-listenbrainz")
+GCS_RAW_MB     = os.getenv("GCS_BUCKET_RAW_MB", "brainz-raw-musicbrainz")
+GCS_PROCESSED  = os.getenv("GCS_BUCKET_PROCESSED", "brainz-processed")
+DATAPROC_CLUSTER = "brainz-spark-cluster"
 
 default_args = {
     'owner': 'data-team',
@@ -40,19 +47,19 @@ with DAG(
     def download_musicbrainz_dumps(**context):
         import subprocess
         import os
-        
+
         execution_date = context['ds']
-        
+
         for table in MB_TABLES:
             url = f"{MUSICBRAINZ_BASE_URL}{table}.tar.xz"
             checksum_url = f"{MUSICBRAINZ_BASE_URL}SHA256SUMS"
-            
+
             local_path = f"/tmp/{table}.tar.xz"
-            s3_path = f"s3://{S3_BUCKET}/{S3_RAW_PREFIX}/mb/{execution_date}/{table}.tar.xz"
-            
+            gcs_path = f"gs://{GCS_RAW_MB}/{execution_date}/{table}.tar.xz"
+
             # Download
             subprocess.run(['wget', '-q', '-O', local_path, url], check=True)
-            
+
             # Verify checksum
             subprocess.run(['wget', '-q', '-O', '/tmp/SHA256SUMS', checksum_url], check=True)
             result = subprocess.run(
@@ -61,11 +68,11 @@ with DAG(
             )
             if result.returncode != 0:
                 raise ValueError(f"Checksum failed for {table}")
-            
-            # Upload to S3
-            subprocess.run(['aws', 's3', 'cp', local_path, s3_path], check=True)
+
+            # Upload to GCS
+            subprocess.run(['gsutil', 'cp', local_path, gcs_path], check=True)
             os.remove(local_path)
-            
+
         return f"Downloaded {len(MB_TABLES)} MusicBrainz dumps"
 
     download_mb = PythonOperator(
@@ -78,24 +85,25 @@ with DAG(
         import subprocess
         import requests
         import re
-        
+
         execution_date = context['ds']
-        
+
         # Find latest full dump
         response = requests.get(LISTENBRAINZ_BASE_URL)
         dumps = re.findall(r'listenbrainz-listens-dump-\d+-\d+-full\.tar\.zst', response.text)
         latest_dump = sorted(dumps)[-1]
-        
+
         url = f"{LISTENBRAINZ_BASE_URL}{latest_dump}"
         local_path = f"/tmp/{latest_dump}"
-        s3_path = f"s3://{S3_BUCKET}/{S3_RAW_PREFIX}/lb/{execution_date}/{latest_dump}"
-        
+        gcs_path = f"gs://{GCS_RAW_LB}/{execution_date}/{latest_dump}"
+
         # Download (peut prendre plusieurs heures pour ~50-100GB)
         subprocess.run(['wget', '-q', '-O', local_path, url], check=True)
-        
-        # Upload to S3
-        subprocess.run(['aws', 's3', 'cp', local_path, s3_path], check=True)
-        
+
+        # Upload to GCS
+        subprocess.run(['gsutil', '-o', 'GSUtil:parallel_composite_upload_threshold=150M',
+                        'cp', local_path, gcs_path], check=True)
+
         return latest_dump
 
     download_lb = PythonOperator(
@@ -103,85 +111,111 @@ with DAG(
         python_callable=download_listenbrainz_dump,
     )
 
-    # === TASK 3: Extract and process with Spark ===
-    spark_steps = [
-        {
-            'Name': 'Extract MusicBrainz JSON',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': [
-                    'spark-submit',
-                    '--deploy-mode', 'cluster',
-                    '--master', 'yarn',
-                    f's3://{S3_BUCKET}/scripts/extract_musicbrainz.py',
-                    '--input', f's3://{S3_BUCKET}/{S3_RAW_PREFIX}/mb/{{{{ ds }}}}/',
-                    '--output', f's3://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/mb/{{{{ ds }}}}/',
-                ]
-            }
+    # === TASK 3: Créer le cluster Dataproc ===
+    create_cluster = DataprocCreateClusterOperator(
+        task_id='create_dataproc_cluster',
+        project_id=GCP_PROJECT,
+        cluster_config={
+            'master_config': {
+                'num_instances': 1,
+                'machine_type_uri': 'n1-standard-4',
+                'disk_config': {'boot_disk_type': 'pd-ssd', 'boot_disk_size_gb': 100},
+            },
+            'worker_config': {
+                'num_instances': 2,
+                'machine_type_uri': 'n1-standard-4',
+                'disk_config': {'boot_disk_type': 'pd-ssd', 'boot_disk_size_gb': 100},
+            },
+            'software_config': {'image_version': '2.1-debian11'},
         },
-        {
-            'Name': 'Extract ListenBrainz JSON',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': [
-                    'spark-submit',
-                    '--deploy-mode', 'cluster',
-                    '--master', 'yarn',
-                    f's3://{S3_BUCKET}/scripts/extract_listenbrainz.py',
-                    '--input', f's3://{S3_BUCKET}/{S3_RAW_PREFIX}/lb/{{{{ ds }}}}/',
-                    '--output', f's3://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/lb/{{{{ ds }}}}/',
-                ]
-            }
-        },
-        {
-            'Name': 'Process and Join Data',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': [
-                    'spark-submit',
-                    '--deploy-mode', 'cluster',
-                    '--master', 'yarn',
-                    '--conf', 'spark.sql.shuffle.partitions=200',
-                    '--conf', 'spark.driver.memory=8g',
-                    '--conf', 'spark.executor.memory=16g',
-                    f's3://{S3_BUCKET}/scripts/process_data.py',
-                    '--mb-input', f's3://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/mb/{{{{ ds }}}}/',
-                    '--lb-input', f's3://{S3_BUCKET}/{S3_EXTRACTED_PREFIX}/lb/{{{{ ds }}}}/',
-                    '--output', f's3://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/{{{{ ds }}}}/',
-                ]
-            }
-        },
-        {
-            'Name': 'Generate Features',
-            'ActionOnFailure': 'TERMINATE_CLUSTER',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': [
-                    'spark-submit',
-                    '--deploy-mode', 'cluster',
-                    '--master', 'yarn',
-                    f's3://{S3_BUCKET}/scripts/generate_features.py',
-                    '--input', f's3://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/{{{{ ds }}}}/',
-                    '--output', f's3://{S3_BUCKET}/{S3_PROCESSED_PREFIX}/features/{{{{ ds }}}}/',
-                ]
-            }
-        },
-    ]
-
-    process_spark = EmrAddStepsOperator(
-        task_id='process_with_spark',
-        job_flow_id='{{ var.value.emr_cluster_id }}',  # Ou créer cluster on-demand
-        steps=spark_steps,
+        region=GCP_REGION,
+        cluster_name=DATAPROC_CLUSTER,
     )
 
-    wait_spark = EmrStepSensor(
-        task_id='wait_spark_completion',
-        job_flow_id='{{ var.value.emr_cluster_id }}',
-        step_id='{{ task_instance.xcom_pull(task_ids="process_with_spark")[0] }}',
+    # === TASK 4: Jobs Spark sur Dataproc ===
+    extract_mb_job = DataprocSubmitJobOperator(
+        task_id='extract_musicbrainz',
+        job={
+            'reference': {'project_id': GCP_PROJECT},
+            'placement': {'cluster_name': DATAPROC_CLUSTER},
+            'pyspark_job': {
+                'main_python_file_uri': f'gs://{GCS_PROCESSED}/scripts/extract_musicbrainz.py',
+                'args': [
+                    '--input',  f'gs://{GCS_RAW_MB}/{{{{ ds }}}}/',
+                    '--output', f'gs://{GCS_PROCESSED}/extracted/mb/{{{{ ds }}}}/',
+                ],
+            },
+        },
+        region=GCP_REGION,
+        project_id=GCP_PROJECT,
+    )
+
+    extract_lb_job = DataprocSubmitJobOperator(
+        task_id='extract_listenbrainz',
+        job={
+            'reference': {'project_id': GCP_PROJECT},
+            'placement': {'cluster_name': DATAPROC_CLUSTER},
+            'pyspark_job': {
+                'main_python_file_uri': f'gs://{GCS_PROCESSED}/scripts/extract_listenbrainz.py',
+                'args': [
+                    '--input',  f'gs://{GCS_RAW_LB}/{{{{ ds }}}}/',
+                    '--output', f'gs://{GCS_PROCESSED}/extracted/lb/{{{{ ds }}}}/',
+                ],
+            },
+        },
+        region=GCP_REGION,
+        project_id=GCP_PROJECT,
+    )
+
+    process_job = DataprocSubmitJobOperator(
+        task_id='process_data',
+        job={
+            'reference': {'project_id': GCP_PROJECT},
+            'placement': {'cluster_name': DATAPROC_CLUSTER},
+            'pyspark_job': {
+                'main_python_file_uri': f'gs://{GCS_PROCESSED}/scripts/process_data.py',
+                'args': [
+                    '--mb-input', f'gs://{GCS_PROCESSED}/extracted/mb/{{{{ ds }}}}/',
+                    '--lb-input', f'gs://{GCS_PROCESSED}/extracted/lb/{{{{ ds }}}}/',
+                    '--output',   f'gs://{GCS_PROCESSED}/{{{{ ds }}}}/',
+                ],
+                'properties': {
+                    'spark.sql.shuffle.partitions': '200',
+                    'spark.driver.memory': '8g',
+                    'spark.executor.memory': '16g',
+                },
+            },
+        },
+        region=GCP_REGION,
+        project_id=GCP_PROJECT,
+    )
+
+    features_job = DataprocSubmitJobOperator(
+        task_id='generate_features',
+        job={
+            'reference': {'project_id': GCP_PROJECT},
+            'placement': {'cluster_name': DATAPROC_CLUSTER},
+            'pyspark_job': {
+                'main_python_file_uri': f'gs://{GCS_PROCESSED}/scripts/generate_features.py',
+                'args': [
+                    '--input',  f'gs://{GCS_PROCESSED}/{{{{ ds }}}}/',
+                    '--output', f'gs://{GCS_PROCESSED}/features/{{{{ ds }}}}/',
+                ],
+            },
+        },
+        region=GCP_REGION,
+        project_id=GCP_PROJECT,
+    )
+
+    # === TASK 5: Supprimer le cluster Dataproc ===
+    delete_cluster = DataprocDeleteClusterOperator(
+        task_id='delete_dataproc_cluster',
+        project_id=GCP_PROJECT,
+        cluster_name=DATAPROC_CLUSTER,
+        region=GCP_REGION,
+        trigger_rule='all_done',  # Supprimer même si un job échoue
     )
 
     # Dépendances
-    [download_mb, download_lb] >> process_spark >> wait_spark
+    [download_mb, download_lb] >> create_cluster
+    create_cluster >> [extract_mb_job, extract_lb_job] >> process_job >> features_job >> delete_cluster

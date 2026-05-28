@@ -10,7 +10,7 @@ from typing import Optional
 import json
 import re
 import os
-import boto3
+from google.cloud import storage
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement depuis .env
@@ -133,19 +133,19 @@ def upload_to_s3(
     Upload un fichier vers S3 en utilisant les credentials du .env
     
     Variables attendues dans .env:
-        AWS_ACCESS_KEY_ID=votre_access_key
-        AWS_SECRET_ACCESS_KEY=votre_secret_key
+        
+        
     """
-    aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    
+    
     
     if not aws_access_key or not aws_secret_key:
         print("❌ Credentials AWS non trouvés dans le fichier .env")
-        print("   Assurez-vous que AWS_ACCESS_KEY_ID et AWS_SECRET_ACCESS_KEY sont définis")
+        print("   Assurez-vous que 
         return False
     
     try:
-        s3_client = boto3.client(
+        s3_client = 
             's3',
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_key,
@@ -159,7 +159,7 @@ def upload_to_s3(
             ExtraArgs={'ContentType': 'application/json'}
         )
         
-        print(f"✅ Uploadé vers s3://{bucket_name}/{s3_key}")
+        print(f"✅ Uploadé vers gs://{bucket_name}/{s3_key}")
         return True
         
     except Exception as e:

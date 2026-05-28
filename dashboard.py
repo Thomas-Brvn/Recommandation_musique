@@ -14,15 +14,18 @@ import threading
 from pathlib import Path
 from typing import List, Optional
 
-import boto3
-from botocore.exceptions import ClientError
+from google.cloud import storage, compute_v1
+from google.api_core.exceptions import NotFound
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 import uvicorn
 
 # Configuration
-AWS_REGION = os.getenv("AWS_REGION", "eu-north-1")
-S3_BUCKET = os.getenv("S3_BUCKET_NAME", "brainz-data")
+GCP_PROJECT      = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
+GCP_REGION       = os.getenv("GCP_REGION", "europe-north1")
+GCS_BUCKET_LB    = os.getenv("GCS_BUCKET_RAW_LB", "brainz-raw-listenbrainz")
+GCS_BUCKET_MB    = os.getenv("GCS_BUCKET_RAW_MB", "brainz-raw-musicbrainz")
+GCS_BUCKET_PROC  = os.getenv("GCS_BUCKET_PROCESSED", "brainz-processed")
 BASE_DIR = Path(__file__).parent
 
 app = FastAPI(title="Music Rec Dashboard")
@@ -75,14 +78,14 @@ def _stream_proc(proc: subprocess.Popen):
     _emit({"type": "done", "rc": rc, "text": f"\n--- Processus terminé (code retour: {rc}) ---"})
 
 
-# ── AWS helpers ────────────────────────────────────────────────────────────────
+# ── GCP helpers ────────────────────────────────────────────────────────────────
 
-def _s3():
-    return boto3.client("s3", region_name=AWS_REGION)
+def _gcs():
+    return storage.Client(project=GCP_PROJECT)
 
 
-def _ec2():
-    return boto3.client("ec2", region_name=AWS_REGION)
+def _gce():
+    return compute_v1.InstancesClient()
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -95,80 +98,71 @@ async def dashboard():
 
 @app.get("/api/status")
 async def get_status():
-    """Statut général: S3, EC2, modèle, pipeline."""
+    """Statut général: GCS, GCE, modèle, pipeline."""
     result: dict = {
         "pipeline_running": _pipeline_proc is not None and _pipeline_proc.poll() is None,
-        "s3": {},
-        "ec2": [],
+        "gcs": {},
+        "gce": [],
         "model": {"trained": False},
         "pipeline_completed": False,
         "errors": [],
     }
 
-    # ── S3 ──────────────────────────────────────────────────────────────────
+    # ── GCS ─────────────────────────────────────────────────────────────────
     try:
-        s3 = _s3()
-        prefixes = {
-            "musicbrainz":            "raw/musicbrainz/",
-            "listenbrainz":           "raw/listenbrainz/incrementals/",
-            "processed":              "processed/",
-            "models":                 "models/",
-        }
-        for name, prefix in prefixes.items():
+        gcs = _gcs()
+        checks = [
+            ("musicbrainz", GCS_BUCKET_MB,   ""),
+            ("listenbrainz", GCS_BUCKET_LB,   "incrementals/"),
+            ("processed",    GCS_BUCKET_PROC, ""),
+            ("models",       GCS_BUCKET_PROC, "models/"),
+        ]
+        for name, bucket_name, prefix in checks:
             size, count = 0, 0
-            paginator = s3.get_paginator("list_objects_v2")
-            for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=prefix):
-                for obj in page.get("Contents", []):
-                    size += obj["Size"]
-                    count += 1
-            result["s3"][name] = {"count": count, "size_gb": round(size / 1e9, 2)}
+            for blob in gcs.list_blobs(bucket_name, prefix=prefix):
+                size += blob.size or 0
+                count += 1
+            result["gcs"][name] = {"count": count, "size_gb": round(size / 1e9, 2)}
 
         # Pipeline completion marker
         try:
-            s3.head_object(Bucket=S3_BUCKET, Key="status/full_pipeline_completed")
+            gcs.bucket(GCS_BUCKET_PROC).blob("status/full_pipeline_completed").reload()
             result["pipeline_completed"] = True
-        except ClientError:
+        except NotFound:
             pass
 
         # Model
         try:
-            s3.head_object(Bucket=S3_BUCKET, Key="models/als_model.pkl")
+            model_blob = gcs.bucket(GCS_BUCKET_PROC).blob("models/als_model.pkl")
+            model_blob.reload()
             result["model"]["trained"] = True
             try:
-                obj = s3.get_object(Bucket=S3_BUCKET, Key="models/evaluation_results.json")
-                result["model"]["metrics"] = json.loads(obj["Body"].read())
+                data = gcs.bucket(GCS_BUCKET_PROC).blob("models/evaluation_results.json").download_as_bytes()
+                result["model"]["metrics"] = json.loads(data)
             except Exception:
                 pass
-        except ClientError:
+        except NotFound:
             pass
 
     except Exception as e:
-        result["errors"].append(f"S3: {e}")
+        result["errors"].append(f"GCS: {e}")
 
-    # ── EC2 ─────────────────────────────────────────────────────────────────
+    # ── GCE ─────────────────────────────────────────────────────────────────
     try:
-        ec2 = _ec2()
-        resp = ec2.describe_instances(
-            Filters=[
-                {"Name": "tag:Project", "Values": ["MusicRecommendation"]},
-                {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]},
-            ]
-        )
-        for reservation in resp["Reservations"]:
-            for inst in reservation["Instances"]:
-                name = next(
-                    (t["Value"] for t in inst.get("Tags", []) if t["Key"] == "Name"),
-                    "N/A",
-                )
-                result["ec2"].append({
-                    "id":          inst["InstanceId"],
-                    "type":        inst["InstanceType"],
-                    "state":       inst["State"]["Name"],
-                    "name":        name,
-                    "launch_time": inst["LaunchTime"].isoformat(),
+        gce = _gce()
+        zone = f"{GCP_REGION}-a"
+        instances = gce.list(project=GCP_PROJECT, zone=zone)
+        for inst in instances:
+            labels = inst.labels or {}
+            if labels.get("project") == "music-recommendation":
+                result["gce"].append({
+                    "id":           str(inst.id),
+                    "name":         inst.name,
+                    "type":         inst.machine_type.split("/")[-1],
+                    "state":        inst.status,
                 })
     except Exception as e:
-        result["errors"].append(f"EC2: {e}")
+        result["errors"].append(f"GCE: {e}")
 
     return result
 
@@ -176,35 +170,32 @@ async def get_status():
 @app.get("/api/pipeline/steps")
 async def get_pipeline_steps():
     """Retourne le statut de chaque étape de la pipeline."""
-    s3 = _s3()
+    gcs = _gcs()
 
-    def check(key: str):
+    def check(bucket_name: str, key: str):
         """Retourne {'exists': bool, 'ts': ISO str or None}."""
         try:
-            obj = s3.head_object(Bucket=S3_BUCKET, Key=key)
-            return {"exists": True, "ts": obj["LastModified"].isoformat()}
-        except ClientError:
+            blob = gcs.bucket(bucket_name).blob(key)
+            blob.reload()
+            return {"exists": True, "ts": blob.updated.isoformat() if blob.updated else None}
+        except NotFound:
             return {"exists": False, "ts": None}
 
-    def count_prefix(prefix: str) -> int:
-        n = 0
-        paginator = s3.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=prefix, MaxKeys=1):
-            n += page.get("KeyCount", 0)
-        return n
+    def count_prefix(bucket_name: str, prefix: str) -> int:
+        return sum(1 for _ in gcs.list_blobs(bucket_name, prefix=prefix, max_results=1))
 
     try:
-        has_raw    = count_prefix("raw/listenbrainz/incrementals/") > 0
-        dedup      = check("processed/track_dedup_map.json")
-        matrix     = check("processed/user_item_matrix.npz")
-        model      = check("models/als_model.pkl")
-        completed  = check("status/full_pipeline_completed")
+        has_raw   = count_prefix(GCS_BUCKET_LB, "incrementals/") > 0
+        dedup     = check(GCS_BUCKET_PROC, "processed/track_dedup_map.json")
+        matrix    = check(GCS_BUCKET_PROC, "processed/user_item_matrix.npz")
+        model     = check(GCS_BUCKET_PROC, "models/als_model.pkl")
+        completed = check(GCS_BUCKET_PROC, "status/full_pipeline_completed")
 
         steps = [
             {
                 "id":    "data",
                 "label": "Données brutes",
-                "desc":  "Dumps ListenBrainz dans S3",
+                "desc":  "Dumps ListenBrainz dans GCS",
                 "done":  has_raw,
                 "ts":    None,
             },
@@ -232,67 +223,68 @@ async def get_pipeline_steps():
             {
                 "id":    "done",
                 "label": "Pipeline terminé",
-                "desc":  "Upload complet sur S3",
+                "desc":  "Upload complet sur GCS",
                 "done":  completed["exists"],
                 "ts":    completed["ts"],
             },
         ]
 
-        # Déterminer l'étape active (première non-done après une done)
+        # Déterminer l'étape active
         last_done = -1
         for i, s in enumerate(steps):
             if s["done"]:
                 last_done = i
         active_idx = last_done + 1 if last_done < len(steps) - 1 else None
 
-        # Récupérer si une instance EC2 tourne pour confirmer "active"
-        ec2 = _ec2()
-        resp = ec2.describe_instances(
-            Filters=[
-                {"Name": "tag:Project", "Values": ["MusicRecommendation"]},
-                {"Name": "instance-state-name", "Values": ["running", "pending"]},
-            ]
-        )
-        ec2_running = any(
-            inst
-            for r in resp["Reservations"]
-            for inst in r["Instances"]
-        )
+        # Vérifier si une instance GCE tourne
+        gce = _gce()
+        zone = f"{GCP_REGION}-a"
+        gce_running = False
+        try:
+            for inst in gce.list(project=GCP_PROJECT, zone=zone):
+                labels = inst.labels or {}
+                if (labels.get("project") == "music-recommendation"
+                        and inst.status == "RUNNING"):
+                    gce_running = True
+                    break
+        except Exception:
+            pass
 
         for i, s in enumerate(steps):
-            if i == active_idx and ec2_running:
-                s["active"] = True
-            else:
-                s["active"] = False
+            s["active"] = (i == active_idx and gce_running)
 
         return {"steps": steps}
     except Exception as e:
         return {"error": str(e), "steps": []}
 
 
-@app.get("/api/ec2/logs/{instance_id}")
-async def get_ec2_logs(instance_id: str):
-    """Console output de l'instance EC2."""
+@app.get("/api/gce/logs/{instance_name}")
+async def get_gce_logs(instance_name: str):
+    """Serial port output de l'instance GCE."""
     try:
-        ec2 = _ec2()
-        resp = ec2.get_console_output(InstanceId=instance_id)
-        output = resp.get("Output", "")
+        serial_client = compute_v1.SerialPortOutputClient()
+        zone = f"{GCP_REGION}-a"
+        resp = serial_client.get_serial_port_output(
+            project=GCP_PROJECT, zone=zone, instance=instance_name
+        )
+        output = resp.contents or ""
         if not output:
             return {"logs": "Pas encore de logs disponibles — attendre quelques minutes..."}
-        # Return last ~300 lines
         lines = output.splitlines()
         return {"logs": "\n".join(lines[-300:])}
     except Exception as e:
         return {"error": str(e)}
 
 
-@app.post("/api/ec2/terminate/{instance_id}")
-async def terminate_ec2(instance_id: str):
-    """Termine une instance EC2."""
+@app.post("/api/gce/terminate/{instance_name}")
+async def terminate_gce(instance_name: str):
+    """Supprime une instance GCE."""
     try:
-        ec2 = _ec2()
-        ec2.terminate_instances(InstanceIds=[instance_id])
-        _emit({"type": "warn", "text": f"Instance {instance_id} terminée."})
+        gce = _gce()
+        zone = f"{GCP_REGION}-a"
+        operation = gce.delete(project=GCP_PROJECT, zone=zone, instance=instance_name)
+        operation.result()
+        _emit({"type": "warn", "text": f"Instance {instance_name} supprimée."})
         return {"ok": True}
     except Exception as e:
         return {"error": str(e)}
@@ -309,12 +301,11 @@ async def launch_pipeline(body: dict):
     action = body.get("action", "full")
 
     if action == "full":
-        cmd = [sys.executable, str(BASE_DIR / "scripts/run_full_pipeline_ec2.py"), "--no-monitor"]
+        cmd = [sys.executable, str(BASE_DIR / "scripts/run_full_pipeline_gce.py")]
     elif action == "status":
-        cmd = [sys.executable, str(BASE_DIR / "scripts/run_full_pipeline_ec2.py"), "--status"]
+        cmd = [sys.executable, str(BASE_DIR / "scripts/run_full_pipeline_gce.py"), "--monitor"]
     elif action == "download":
-        # download_to_s3_via_ec2.py needs config/aws_config.json + choice "3"
-        cmd = [sys.executable, str(BASE_DIR / "scripts/download_to_s3_via_ec2.py"), "3"]
+        cmd = [sys.executable, str(BASE_DIR / "scripts/download_to_gcs_via_gce.py"), "3"]
     else:
         return {"error": f"Action inconnue: {action}"}
 

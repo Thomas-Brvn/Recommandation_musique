@@ -37,7 +37,7 @@ def get_ubuntu_ami(region):
     print(f"🔍 Recherche de l'AMI Ubuntu 22.04 pour {region}...")
 
     cmd = f"""aws ec2 describe-images \
-        --region {region} \
+        \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
                   "Name=state,Values=available" \
@@ -60,7 +60,7 @@ def get_ubuntu_ami(region):
 
 def load_config():
     """Charge la configuration AWS"""
-    config_file = Path("config/aws_config.json")
+    config_file = Path("config/gcp_config.json")
     if config_file.exists():
         with open(config_file, 'r') as f:
             return json.load(f)
@@ -106,7 +106,7 @@ cd /data
 
 echo "Étape 1/5: Téléchargement depuis S3..."
 echo "=========================================="
-aws s3 cp "s3://$BUCKET_NAME/raw/listenbrainz/$INPUT_FILE" /data/input/$INPUT_FILE --region eu-north-1
+gsutil cp "gs://$BUCKET_NAME/raw/listenbrainz/$INPUT_FILE" /data/input/$INPUT_FILE
 
 if [ $? -ne 0 ]; then
     echo "✗ Erreur téléchargement depuis S3"
@@ -273,7 +273,7 @@ echo ""
 echo "Étape 5/5: Upload vers S3..."
 echo "=========================================="
 
-aws s3 cp /data/$OUTPUT_FILE "s3://$BUCKET_NAME/processed/listenbrainz/$OUTPUT_FILE" --region eu-north-1
+gsutil cp /data/$OUTPUT_FILE "gs://$BUCKET_NAME/processed/listenbrainz/$OUTPUT_FILE"
 
 if [ $? -eq 0 ]; then
     echo "✓ Upload réussi!"
@@ -291,20 +291,20 @@ if [ $? -eq 0 ]; then
 }}
 EOF
 
-    aws s3 cp /data/metadata.json "s3://$BUCKET_NAME/processed/listenbrainz/metadata-2025.json" --region eu-north-1
+    gsutil cp /data/metadata.json "gs://$BUCKET_NAME/processed/listenbrainz/metadata-2025.json"
 
     echo ""
     echo "=========================================="
     echo "✅ FILTRAGE TERMINÉ AVEC SUCCÈS!"
     echo "=========================================="
     echo "Fichier créé: $OUTPUT_FILE ($OUTPUT_SIZE)"
-    echo "Localisation S3: s3://$BUCKET_NAME/processed/listenbrainz/$OUTPUT_FILE"
-    echo "Métadonnées: s3://$BUCKET_NAME/processed/listenbrainz/metadata-2025.json"
+    echo "Localisation S3: gs://$BUCKET_NAME/processed/listenbrainz/$OUTPUT_FILE"
+    echo "Métadonnées: gs://$BUCKET_NAME/processed/listenbrainz/metadata-2025.json"
     echo "=========================================="
 
     # Marqueur de succès
     echo "SUCCESS" > /tmp/filter-status
-    aws s3 cp /tmp/filter-status "s3://$BUCKET_NAME/processed/.filter-completed"
+    gsutil cp /tmp/filter-status "gs://$BUCKET_NAME/processed/.filter-completed"
 else
     echo "✗ Erreur upload vers S3"
     exit 1
@@ -344,7 +344,7 @@ def main():
         print("❌ Configuration non trouvée")
         sys.exit(1)
 
-    bucket_name = config.get("bucket_name")
+    bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
     region = config.get("region")
 
     print(f"\n✅ Configuration")
@@ -383,7 +383,7 @@ def main():
         --iam-instance-profile Name={instance_profile} \
         --user-data file://{user_data_file} \
         --block-device-mappings '[{{"DeviceName":"/dev/sda1","Ebs":{{"VolumeSize":200,"VolumeType":"gp3","DeleteOnTermination":true}}}}]' \
-        --region {region}"""
+       """
 
     stdout, stderr, code = run_aws_command(cmd, check=False)
 
@@ -410,13 +410,13 @@ def main():
     print("📋 Pour suivre la progression:")
     print("")
     print("  # Voir les logs:")
-    print(f"  aws ec2 get-console-output --instance-id {instance_id} --region {region} --output text | tail -100")
+    print(f"  aws ec2 get-console-output --instance-id {instance_id} --output text | tail -100")
     print("")
     print("  # Vérifier le résultat sur S3:")
-    print(f"  aws s3 ls s3://{bucket_name}/processed/listenbrainz/ --region {region} --human-readable")
+    print(f"  gsutil ls gs://{bucket_name}/processed/listenbrainz/ --human-readable")
     print("")
     print("  # Terminer l'instance quand c'est fini:")
-    print(f"  aws ec2 terminate-instances --instance-ids {instance_id} --region {region}")
+    print(f"  aws ec2 terminate-instances --instance-ids {instance_id}")
     print("")
     print("⏱️  Le traitement peut prendre 1-2 heures")
     print("✅ Vous verrez 'listenbrainz-2025-only.tar' sur S3 quand c'est terminé")

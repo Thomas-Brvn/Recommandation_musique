@@ -30,7 +30,7 @@ def get_ubuntu_ami(region):
     print(f"🔍 Recherche de l'AMI Ubuntu 22.04 pour {region}...")
 
     cmd = f"""aws ec2 describe-images \
-        --region {region} \
+        \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
                   "Name=state,Values=available" \
@@ -53,7 +53,7 @@ def get_ubuntu_ami(region):
 
 def load_config():
     """Charge la configuration AWS"""
-    config_file = Path("config/aws_config.json")
+    config_file = Path("config/gcp_config.json")
     if config_file.exists():
         with open(config_file, 'r') as f:
             return json.load(f)
@@ -137,7 +137,7 @@ if [ $WGET_EXIT -eq 0 ] || [ $WGET_EXIT -eq 8 ]; then
     echo "✓ TEST réussi! Téléchargé: $FILE_SIZE"
 
     echo "Upload du fichier test vers S3..."
-    aws s3 cp "/data/listenbrainz/test-${{LATEST_DUMP}}" "s3://$BUCKET_NAME/raw/listenbrainz/TEST-${{LATEST_DUMP}}"
+    gsutil cp "/data/listenbrainz/test-${{LATEST_DUMP}}" "gs://$BUCKET_NAME/raw/listenbrainz/TEST-${{LATEST_DUMP}}"
 
     if [ $? -eq 0 ]; then
         echo "✓ Fichier test uploadé vers S3"
@@ -154,7 +154,7 @@ if [ $WGET_EXIT -eq 0 ] || [ $WGET_EXIT -eq 8 ]; then
 
         # Créer marqueur de succès
         echo "TEST_SUCCESS" > /tmp/test-status
-        aws s3 cp /tmp/test-status "s3://$BUCKET_NAME/raw/.test-completed"
+        gsutil cp /tmp/test-status "gs://$BUCKET_NAME/raw/.test-completed"
     else
         echo "✗ Erreur upload vers S3"
     fi
@@ -186,7 +186,7 @@ def main():
         print("❌ Configuration non trouvée")
         sys.exit(1)
 
-    bucket_name = config.get("bucket_name")
+    bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
     region = config.get("region")
 
     print(f"✅ Configuration")
@@ -222,7 +222,7 @@ def main():
         --iam-instance-profile Name={instance_profile} \
         --user-data file://{user_data_file} \
         --block-device-mappings '[{{"DeviceName":"/dev/sda1","Ebs":{{"VolumeSize":10,"VolumeType":"gp3","DeleteOnTermination":true}}}}]' \
-        --region {region}"""
+       """
 
     stdout, stderr, code = run_aws_command(cmd, check=False)
 
@@ -249,13 +249,13 @@ def main():
     print("⏱️  Attendez 2-5 minutes, puis vérifiez:")
     print("")
     print("  # Voir les logs:")
-    print(f"  aws ec2 get-console-output --instance-id {instance_id} --region {region} --output text | tail -50")
+    print(f"  aws ec2 get-console-output --instance-id {instance_id} --output text | tail -50")
     print("")
     print("  # Vérifier le fichier test sur S3:")
-    print(f"  aws s3 ls s3://{bucket_name}/raw/listenbrainz/ --region {region} --human-readable")
+    print(f"  gsutil ls gs://{bucket_name}/raw/listenbrainz/ --human-readable")
     print("")
     print("  # Terminer l'instance:")
-    print(f"  aws ec2 terminate-instances --instance-ids {instance_id} --region {region}")
+    print(f"  aws ec2 terminate-instances --instance-ids {instance_id}")
     print("")
     print("Si vous voyez un fichier TEST-* de ~500 MB, c'est bon! ✅")
     print("=" * 60)

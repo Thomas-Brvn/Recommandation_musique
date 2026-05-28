@@ -10,12 +10,12 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import zstandard as zstd
-import boto3
+from google.cloud import storage
 from tqdm import tqdm
 
 # Configuration
-S3_BUCKET = os.getenv("S3_BUCKET_NAME", "listen-brainz-data")
-S3_PREFIX = "raw/listenbrainz/incrementals/"
+GCS_BUCKET = os.getenv("GCS_BUCKET_RAW_LB", "brainz-raw-listenbrainz")
+GCS_PREFIX = "raw/listenbrainz/incrementals/"
 LOCAL_RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "listenbrainz"
 LOCAL_EXTRACTED_DIR = Path(__file__).parent.parent / "data" / "extracted" / "listenbrainz"
 
@@ -112,11 +112,11 @@ def main(max_archives: int = None, parallel: int = 4):
     LOCAL_EXTRACTED_DIR.mkdir(parents=True, exist_ok=True)
 
     # Client S3
-    s3_client = boto3.client('s3')
+    gcs_client = storage.Client(project=os.getenv('GCP_PROJECT_ID', 'projetetude-497218'))
 
     # Lister les archives
-    print(f"\nRecherche des archives dans s3://{S3_BUCKET}/{S3_PREFIX}...")
-    archives = list_s3_archives(s3_client, S3_BUCKET, S3_PREFIX)
+    print(f"\nRecherche des archives dans gs://{GCS_BUCKET}/{GCS_PREFIX}...")
+    archives = list_s3_archives(s3_client, GCS_BUCKET, GCS_PREFIX)
     print(f"Trouvé {len(archives)} archives")
 
     if max_archives:
@@ -131,7 +131,7 @@ def main(max_archives: int = None, parallel: int = 4):
                 executor.submit(
                     process_archive,
                     s3_client,
-                    S3_BUCKET,
+                    GCS_BUCKET,
                     s3_key,
                     LOCAL_RAW_DIR,
                     LOCAL_EXTRACTED_DIR

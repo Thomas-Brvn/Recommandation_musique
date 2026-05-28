@@ -58,8 +58,9 @@ services:
     environment:
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: llama3.2:3b
-      S3_BUCKET_MODEL: ${S3_BUCKET_MODEL:-brainz-data}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-north-1}
+      # GCS / GCP (surchargés par .env si présents)
+      GCS_BUCKET_PROCESSED: ${GCS_BUCKET_PROCESSED:-brainz-processed}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-projetetude-497218}
     volumes:
       - ./data:/app/data
 

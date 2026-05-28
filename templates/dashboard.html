@@ -72,11 +72,11 @@
       transition: width .3s;
     }
 
-    .s3-row { display: flex; justify-content: space-between; align-items: center;
+    .gcs-row { display: flex; justify-content: space-between; align-items: center;
       padding: 6px 0; border-bottom: 1px solid #21262d; }
-    .s3-row:last-child { border-bottom: none; }
+    .gcs-row:last-child { border-bottom: none; }
 
-    .ec2-row { display: flex; justify-content: space-between; align-items: center;
+    .gce-row { display: flex; justify-content: space-between; align-items: center;
       padding: 8px 10px; background: #0d1117; border-radius: 6px; margin-bottom: 6px; }
 
     .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
@@ -177,7 +177,6 @@
       <span id="stepper-updated" class="text-xs text-gray-600">—</span>
     </div>
     <div class="stepper" id="stepper">
-      <!-- rendered by JS -->
       <div class="text-xs text-gray-600">Chargement…</div>
     </div>
   </div>
@@ -185,11 +184,11 @@
   <!-- ── Status cards row ───────────────────────────────────────────── -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
 
-    <!-- S3 card -->
+    <!-- GCS card -->
     <div class="card">
-      <div class="section-title">S3 Données</div>
-      <div id="s3-cards" class="space-y-2">
-        <div class="s3-row"><span class="text-gray-500 text-xs">Chargement…</span></div>
+      <div class="section-title">GCS Données</div>
+      <div id="gcs-cards" class="space-y-2">
+        <div class="gcs-row"><span class="text-gray-500 text-xs">Chargement…</span></div>
       </div>
     </div>
 
@@ -209,23 +208,23 @@
       </div>
     </div>
 
-    <!-- EC2 card -->
+    <!-- GCE card -->
     <div class="card">
-      <div class="section-title">Instances EC2</div>
-      <div id="ec2-summary">
+      <div class="section-title">Instances GCE</div>
+      <div id="gce-summary">
         <div class="text-gray-500 text-xs">Chargement…</div>
       </div>
     </div>
 
   </div>
 
-  <!-- ── Main content: EC2 instances + Pipeline controls ────────────── -->
+  <!-- ── Main content: GCE instances + Pipeline controls ────────────── -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
 
-    <!-- EC2 instances list -->
+    <!-- GCE instances list -->
     <div class="card">
-      <div class="section-title">Instances EC2 actives</div>
-      <div id="ec2-list">
+      <div class="section-title">Instances GCE actives</div>
+      <div id="gce-list">
         <div class="text-gray-500 text-xs">Aucune instance</div>
       </div>
     </div>
@@ -239,7 +238,7 @@
           <div class="flex items-start justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-white mb-1">Pipeline complet</div>
-              <div class="text-xs text-gray-500">Lance une instance EC2, télécharge + traite les données, entraîne le modèle ALS, upload sur S3. Durée: ~2-4h • Coût: ~0.40€</div>
+              <div class="text-xs text-gray-500">Lance une instance GCE, télécharge + traite les données, entraîne le modèle ALS, upload sur GCS. Durée: ~2-4h • Coût: ~0.40€</div>
             </div>
             <button id="btn-full" onclick="launchPipeline('full')" class="btn btn-green whitespace-nowrap">
               ▶ Lancer
@@ -251,7 +250,7 @@
           <div class="flex items-start justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-white mb-1">Téléchargement uniquement</div>
-              <div class="text-xs text-gray-500">Télécharge MusicBrainz + ListenBrainz vers S3 via EC2. Durée: ~2-4h • Coût: ~0.20€</div>
+              <div class="text-xs text-gray-500">Télécharge MusicBrainz + ListenBrainz vers GCS via GCE. Durée: ~2-4h • Coût: ~0.20€</div>
             </div>
             <button id="btn-download" onclick="launchPipeline('download')" class="btn btn-blue whitespace-nowrap">
               ↓ Télécharger
@@ -263,7 +262,7 @@
           <div class="flex items-start justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-white mb-1">Vérifier le statut</div>
-              <div class="text-xs text-gray-500">Vérifie si le pipeline précédent est terminé sur S3.</div>
+              <div class="text-xs text-gray-500">Vérifie si le pipeline précédent est terminé sur GCS.</div>
             </div>
             <button onclick="launchPipeline('status')" class="btn btn-yellow whitespace-nowrap">
               ⚡ Statut
@@ -298,12 +297,12 @@
     <div id="terminal"><span class="t-info">Connexion WebSocket...</span></div>
   </div>
 
-  <!-- ── EC2 logs modal ─────────────────────────────────────────────── -->
+  <!-- ── GCE logs modal ─────────────────────────────────────────────── -->
   <div id="logs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.7)">
     <div class="card w-full max-w-3xl" style="max-height:80vh; display:flex; flex-direction:column;">
       <div class="flex items-center justify-between mb-3">
         <div>
-          <div class="font-semibold text-white text-sm" id="modal-title">Console EC2</div>
+          <div class="font-semibold text-white text-sm" id="modal-title">Console GCE</div>
           <div class="text-xs text-gray-500" id="modal-subtitle"></div>
         </div>
         <button onclick="closeModal()" class="btn btn-gray" style="padding:4px 12px;">✕</button>
@@ -325,7 +324,7 @@
 // ── Config ──────────────────────────────────────────────────────────────────
 const API = '';
 let ws = null;
-let currentInstanceId = null;
+let currentInstanceName = null;
 let autoScrollLogs = true;
 
 // ── WebSocket ────────────────────────────────────────────────────────────────
@@ -392,8 +391,6 @@ function clearTerminal() {
 }
 
 // ── Pipeline stepper ──────────────────────────────────────────────────────────
-const STEP_ICONS = { data: '☁', dedup: '⧖', aggregation: '⊞', training: '◈', done: '✓' };
-
 async function loadStepper() {
   try {
     const { steps, error } = await fetch(`${API}/api/pipeline/steps`).then(r => r.json());
@@ -434,11 +431,11 @@ async function loadStepper() {
 async function loadStatus() {
   try {
     const data = await fetch(`${API}/api/status`).then(r => r.json());
-    renderS3(data.s3);
+    renderGCS(data.gcs);
     renderModel(data.model);
     renderPipelineCard(data);
-    renderEC2Summary(data.ec2);
-    renderEC2List(data.ec2);
+    renderGCESummary(data.gce);
+    renderGCEList(data.gce);
     updatePipelineIndicator(data.pipeline_running);
 
     document.getElementById('last-refresh').textContent =
@@ -448,23 +445,23 @@ async function loadStatus() {
   }
 }
 
-function renderS3(s3) {
+function renderGCS(gcs) {
   const labels = {
     musicbrainz:  { label: 'MusicBrainz', icon: '🎸' },
     listenbrainz: { label: 'ListenBrainz', icon: '👂' },
     processed:    { label: 'Processed', icon: '⚙️' },
     models:       { label: 'Modèles', icon: '🤖' },
   };
-  const el = document.getElementById('s3-cards');
-  if (!s3 || Object.keys(s3).length === 0) {
-    el.innerHTML = '<div class="text-red-400 text-xs">S3 non accessible</div>';
+  const el = document.getElementById('gcs-cards');
+  if (!gcs || Object.keys(gcs).length === 0) {
+    el.innerHTML = '<div class="text-red-400 text-xs">GCS non accessible</div>';
     return;
   }
   el.innerHTML = Object.entries(labels).map(([key, meta]) => {
-    const d = s3[key] || { count: 0, size_gb: 0 };
+    const d = gcs[key] || { count: 0, size_gb: 0 };
     const hasData = d.count > 0;
     return `
-      <div class="s3-row">
+      <div class="gcs-row">
         <div class="flex items-center gap-2">
           <span>${meta.icon}</span>
           <span class="text-xs ${hasData ? 'text-gray-300' : 'text-gray-600'}">${meta.label}</span>
@@ -530,16 +527,15 @@ function renderPipelineCard(data) {
     <div class="mb-2">${badge}</div>
     <div class="text-xs text-gray-500">${desc}</div>`;
 
-  // Update button states
   document.getElementById('btn-full').disabled = running;
   document.getElementById('btn-download').disabled = running;
   document.getElementById('btn-stop').disabled = !running;
 }
 
-function renderEC2Summary(instances) {
-  const el = document.getElementById('ec2-summary');
-  const running = instances.filter(i => i.state === 'running').length;
-  const total = instances.length;
+function renderGCESummary(instances) {
+  const el = document.getElementById('gce-summary');
+  const running = (instances || []).filter(i => i.state === 'RUNNING').length;
+  const total = (instances || []).length;
 
   if (total === 0) {
     el.innerHTML = `
@@ -557,38 +553,32 @@ function renderEC2Summary(instances) {
     <div class="stat-label">${running} running · ${total - running} stopped</div>`;
 }
 
-function renderEC2List(instances) {
-  const el = document.getElementById('ec2-list');
+function renderGCEList(instances) {
+  const el = document.getElementById('gce-list');
   if (!instances || instances.length === 0) {
-    el.innerHTML = '<div class="text-xs text-gray-600">Aucune instance EC2 avec tag Project=MusicRecommendation</div>';
+    el.innerHTML = '<div class="text-xs text-gray-600">Aucune instance GCE avec label project=music-recommendation</div>';
     return;
   }
 
   el.innerHTML = instances.map(inst => {
     const stateColor = {
-      running: 'dot-green', pending: 'dot-yellow',
-      stopping: 'dot-yellow', stopped: 'dot-gray',
+      RUNNING: 'dot-green', STAGING: 'dot-yellow',
+      STOPPING: 'dot-yellow', TERMINATED: 'dot-gray',
     }[inst.state] || 'dot-gray';
 
-    const launch = new Date(inst.launch_time);
-    const elapsed = Math.round((Date.now() - launch) / 60000);
-    const elapsedStr = elapsed < 60
-      ? `${elapsed}m`
-      : `${Math.floor(elapsed / 60)}h${elapsed % 60}m`;
-
     return `
-      <div class="ec2-row">
+      <div class="gce-row">
         <div class="flex items-center gap-2 min-w-0">
           <span class="dot ${stateColor}"></span>
           <div class="min-w-0">
             <div class="text-xs font-semibold text-white truncate">${inst.name}</div>
-            <div class="text-xs text-gray-500">${inst.id} · ${inst.type} · ${elapsedStr}</div>
+            <div class="text-xs text-gray-500">${inst.id} · ${inst.type} · ${inst.state}</div>
           </div>
         </div>
         <div class="flex gap-2 ml-2 flex-shrink-0">
-          <button onclick="showEC2Logs('${inst.id}', '${inst.name}')"
+          <button onclick="showGCELogs('${inst.name}')"
             class="btn btn-gray" style="padding:3px 10px; font-size:.72rem;">Logs</button>
-          <button onclick="terminateEC2('${inst.id}')"
+          <button onclick="terminateGCE('${inst.name}')"
             class="btn btn-red" style="padding:3px 8px; font-size:.72rem;">✕</button>
         </div>
       </div>`;
@@ -636,26 +626,25 @@ async function stopPipeline() {
   setTimeout(loadStatus, 500);
 }
 
-// ── EC2 modal ─────────────────────────────────────────────────────────────────
-async function showEC2Logs(instanceId, name) {
-  currentInstanceId = instanceId;
-  document.getElementById('modal-title').textContent = `Console EC2 — ${name}`;
-  document.getElementById('modal-subtitle').textContent = instanceId;
+// ── GCE modal ─────────────────────────────────────────────────────────────────
+async function showGCELogs(instanceName) {
+  currentInstanceName = instanceName;
+  document.getElementById('modal-title').textContent = `Console GCE — ${instanceName}`;
+  document.getElementById('modal-subtitle').textContent = instanceName;
   document.getElementById('logs-modal').classList.remove('hidden');
-  document.getElementById('modal-refresh-btn').onclick = () => fetchEC2Logs(instanceId);
-  document.getElementById('modal-terminate-btn').onclick = () => terminateEC2(instanceId);
-  await fetchEC2Logs(instanceId);
+  document.getElementById('modal-refresh-btn').onclick = () => fetchGCELogs(instanceName);
+  document.getElementById('modal-terminate-btn').onclick = () => terminateGCE(instanceName);
+  await fetchGCELogs(instanceName);
 }
 
-async function fetchEC2Logs(instanceId) {
-  document.getElementById('modal-logs').textContent = 'Chargement des logs EC2...';
+async function fetchGCELogs(instanceName) {
+  document.getElementById('modal-logs').textContent = 'Chargement des logs GCE...';
   try {
-    const r = await fetch(`${API}/api/ec2/logs/${instanceId}`).then(r => r.json());
+    const r = await fetch(`${API}/api/gce/logs/${instanceName}`).then(r => r.json());
     if (r.error) {
       document.getElementById('modal-logs').textContent = `Erreur: ${r.error}`;
     } else {
       document.getElementById('modal-logs').textContent = r.logs || 'Pas encore de logs...';
-      // Scroll to bottom
       const el = document.getElementById('modal-logs');
       el.scrollTop = el.scrollHeight;
     }
@@ -664,29 +653,27 @@ async function fetchEC2Logs(instanceId) {
   }
 }
 
-async function terminateEC2(instanceId) {
-  if (!confirm(`Terminer l'instance ${instanceId} ?`)) return;
+async function terminateGCE(instanceName) {
+  if (!confirm(`Supprimer l'instance GCE ${instanceName} ?`)) return;
   closeModal();
-  const r = await fetch(`${API}/api/ec2/terminate/${instanceId}`, { method: 'POST' }).then(r => r.json());
+  const r = await fetch(`${API}/api/gce/terminate/${instanceName}`, { method: 'POST' }).then(r => r.json());
   if (r.error) {
-    appendLog({ type: 'error', text: `Erreur termination: ${r.error}` });
+    appendLog({ type: 'error', text: `Erreur suppression: ${r.error}` });
   } else {
-    appendLog({ type: 'warn', text: `Instance ${instanceId} terminée.` });
+    appendLog({ type: 'warn', text: `Instance GCE ${instanceName} supprimée.` });
     setTimeout(loadStatus, 2000);
   }
 }
 
 function closeModal() {
   document.getElementById('logs-modal').classList.add('hidden');
-  currentInstanceId = null;
+  currentInstanceName = null;
 }
 
-// Close modal on background click
 document.getElementById('logs-modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('logs-modal')) closeModal();
 });
 
-// ── Auto-scroll toggle ────────────────────────────────────────────────────────
 document.getElementById('terminal').addEventListener('scroll', (e) => {
   const t = e.target;
   autoScrollLogs = t.scrollTop + t.clientHeight >= t.scrollHeight - 20;
