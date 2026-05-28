@@ -63,4 +63,24 @@ Thumbs.db
 models/
 uv.lock
 CLAUDE.md
-.gitignore
+
+# Kedro 
+# Kedro — données (stockées sur GCS)
+kedro_project/data/**
+!kedro_project/data/**/.gitkeep
+
+# Kedro — runtime
+kedro_project/logs/
+kedro_project/.kedro.tmp/
+
+# Kedro — config locale (credentials GCP, overrides perso)
+kedro_project/conf/local/*
+!kedro_project/conf/local/.gitkeep
+
+# MLflow
+kedro_project/mlruns/
+
+# Build / packaging
+*.egg-info/
+dist/
+build/
