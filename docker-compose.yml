@@ -1,5 +1,22 @@
 services:
 
+  # ── ChromaDB Vector Store (on-premise) ─────────────────────────────────────
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8002:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/heartbeat || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # ── Serveur Ollama ──────────────────────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
@@ -26,7 +43,7 @@ services:
       ollama:
         condition: service_healthy
 
-  # ── Application FastAPI ────────────────────────────────────────────────────
+  # ── Application FastAPI (recommandation musicale) ──────────────────────────
   app:
     build: .
     ports:
@@ -39,16 +56,52 @@ services:
     env_file:
       - .env
     environment:
-      # Ollama (pointe vers le service interne)
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: llama3.2:3b
-      # S3 / AWS (surchargés par .env si présents)
       S3_BUCKET_MODEL: ${S3_BUCKET_MODEL:-brainz-data}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-north-1}
     volumes:
-      # Persistance de la bibliothèque (likes / playlists)
       - ./data:/app/data
+
+  # ── Festival RAG API ────────────────────────────────────────────────────────
+  festival-app:
+    build: .
+    ports:
+      - "8001:8001"
+    command:
+      - /bin/sh
+      - -c
+      - cd /app/src/app && /app/.venv/bin/uvicorn api:app --host 0.0.0.0 --port 8001
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.2:3b
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: "8000"
+      CHROMA_HTTP: "true"
+      FESTIVALS_FILE: /app/data/festivals_2026.json
+    volumes:
+      - ./data:/app/data
+      - models_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
 
 volumes:
   ollama_data:
+    driver: local
+  chroma_data:
+    driver: local
+  models_cache:
     driver: local

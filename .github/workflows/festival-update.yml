@@ -1,0 +1,89 @@
+name: Festival DB Update
+
+on:
+  # Mise à jour hebdomadaire (lundi 6h UTC)
+  schedule:
+    - cron: "0 6 * * 1"
+  # Déclenchement manuel depuis l'interface GitHub
+  workflow_dispatch:
+    inputs:
+      year:
+        description: "Année des festivals (ex: 2026)"
+        required: false
+        default: "2026"
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  scrape-and-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # pour pouvoir commiter le JSON mis à jour
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: Scrape festivals
+        run: |
+          YEAR=${{ github.event.inputs.year || '2026' }}
+          uv run python scripts/update_festival_db.py --scrape-only --year $YEAR
+        timeout-minutes: 5
+
+      - name: Vérifier que le JSON est valide
+        run: |
+          python -c "
+          import json, sys
+          data = json.load(open('data/festivals_2026.json'))
+          count = len(data)
+          print(f'{count} festivals dans le JSON')
+          if count == 0:
+              print('ERREUR: JSON vide')
+              sys.exit(1)
+          "
+
+      - name: Commiter si changements
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/festivals_2026.json data/festivals_*.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Aucun changement détecté, pas de commit."
+          else
+            git commit -m "chore: mise à jour festivals $(date '+%Y-%m-%d')"
+            git push
+          fi
+
+  # Job séparé : ré-indexation sur runner self-hosted (optionnel, nécessite runner configuré)
+  reindex-chromadb:
+    runs-on: self-hosted
+    needs: scrape-and-commit
+    if: ${{ vars.SELF_HOSTED_RUNNER == 'true' }}  # activé via Variables du repo GitHub
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main  # récupère le commit mis à jour
+
+      - name: Ré-indexer ChromaDB
+        env:
+          CHROMA_HTTP: ${{ vars.CHROMA_HTTP || 'false' }}
+          CHROMA_HOST: ${{ vars.CHROMA_HOST || 'localhost' }}
+          CHROMA_PORT: ${{ vars.CHROMA_PORT || '8000' }}
+          CHROMA_PATH: ${{ vars.CHROMA_PATH || './data/chroma' }}
+        run: |
+          uv run python scripts/update_festival_db.py --index-only
+        timeout-minutes: 10
