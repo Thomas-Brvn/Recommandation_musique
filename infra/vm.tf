@@ -51,17 +51,10 @@ resource "google_compute_instance" "vm_spotify" {
       # Installer les dépendances (sans Airflow ni Spark pour le démarrage)
       uv sync
 
-      # Initialiser Airflow
+      # Initialiser Airflow (Airflow 3 : pas de commande users create)
       export AIRFLOW_HOME=/opt/Recommandation_musique/.airflow
       uv sync --extra airflow
       uv run airflow db migrate
-      uv run airflow users create \
-        --username admin \
-        --password admin \
-        --firstname Admin \
-        --lastname User \
-        --role Admin \
-        --email alphonsemarcay697@gmail.com || true
 
       echo "✅ Setup terminé"
     EOF
