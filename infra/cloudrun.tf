@@ -29,7 +29,7 @@ resource "google_cloud_run_v2_service" "api" {
     service_account = google_service_account.cloudrun.email
 
     containers {
-      image = "us-docker.pkg.dev/cloudrun-samples/hello:latest"
+      image = "gcr.io/cloudrun/placeholder:latest"
 
       ports {
         container_port = 8000
