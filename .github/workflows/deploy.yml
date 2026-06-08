@@ -48,7 +48,7 @@ jobs:
 
       - name: Build & Push Dashboard image
         run: |
-          docker build -f Dockerfile.dashboard -t ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }} -t ${{ env.IMAGE_DASHBOARD }}:latest .
+          docker build --no-cache -f Dockerfile.dashboard -t ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }} -t ${{ env.IMAGE_DASHBOARD }}:latest .
           docker push ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }}
           docker push ${{ env.IMAGE_DASHBOARD }}:latest
 
