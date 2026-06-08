@@ -128,13 +128,12 @@ def upload_to_gcs(
     bucket_name: str,
     gcs_key: str,
 ) -> bool:
-    """Upload un fichier vers GCS."""
+    """Upload un fichier vers GCS via gsutil."""
+    import subprocess
     try:
-        client = storage.Client()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.blob(gcs_key)
-        blob.upload_from_filename(file_path, content_type='application/json')
-        print(f"✅ Uploadé vers gs://{bucket_name}/{gcs_key}")
+        dest = f"gs://{bucket_name}/{gcs_key}"
+        subprocess.run(["gsutil", "cp", file_path, dest], check=True)
+        print(f"✅ Uploadé vers {dest}")
         return True
     except Exception as e:
         print(f"❌ Erreur GCS: {e}")
