@@ -6,6 +6,9 @@ on:
     paths:
       - src/**
       - Dockerfile
+      - Dockerfile.dashboard
+      - dashboard.py
+      - templates/**
       - pyproject.toml
       - uv.lock
 
@@ -17,7 +20,8 @@ env:
   PROJECT_ID: projetetude-497218
   REGION: europe-north1
   REGISTRY: europe-north1-docker.pkg.dev
-  IMAGE: europe-north1-docker.pkg.dev/projetetude-497218/music-api/music-api
+  IMAGE_API: europe-north1-docker.pkg.dev/projetetude-497218/music-api/music-api
+  IMAGE_DASHBOARD: europe-north1-docker.pkg.dev/projetetude-497218/music-api/music-dashboard
 
 jobs:
   deploy:
@@ -36,16 +40,30 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
-      - name: Build & Push Docker image
+      - name: Build & Push API image
         run: |
-          docker build -t ${{ env.IMAGE }}:${{ github.sha }} -t ${{ env.IMAGE }}:latest .
-          docker push ${{ env.IMAGE }}:${{ github.sha }}
-          docker push ${{ env.IMAGE }}:latest
+          docker build -t ${{ env.IMAGE_API }}:${{ github.sha }} -t ${{ env.IMAGE_API }}:latest .
+          docker push ${{ env.IMAGE_API }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_API }}:latest
 
-      - name: Deploy to Cloud Run
+      - name: Build & Push Dashboard image
+        run: |
+          docker build -f Dockerfile.dashboard -t ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }} -t ${{ env.IMAGE_DASHBOARD }}:latest .
+          docker push ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_DASHBOARD }}:latest
+
+      - name: Deploy API to Cloud Run
         run: |
           gcloud run deploy music-api \
-            --image ${{ env.IMAGE }}:${{ github.sha }} \
+            --image ${{ env.IMAGE_API }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --quiet
+
+      - name: Deploy Dashboard to Cloud Run
+        run: |
+          gcloud run deploy music-dashboard \
+            --image ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }} \
             --quiet

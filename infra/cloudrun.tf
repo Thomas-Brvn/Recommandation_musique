@@ -51,6 +51,33 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "GCP_PROJECT_ID"
         value = var.project_id
       }
+      env {
+        name = "PINECONE_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = data.google_secret_manager_secret.pinecone.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "OPENAI_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = data.google_secret_manager_secret.openai.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "GOOGLE_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = data.google_secret_manager_secret.google_api.secret_id
+            version = "latest"
+          }
+        }
+      }
     }
 
     scaling {
@@ -68,7 +95,78 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
   member   = "allUsers"
 }
 
+resource "google_cloud_run_v2_service" "dashboard" {
+  name     = "music-dashboard"
+  location = var.region
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+    ]
+  }
+
+  template {
+    service_account = google_service_account.cloudrun.email
+
+    containers {
+      image = "gcr.io/cloudrun/placeholder:latest"
+
+      ports {
+        container_port = 8080
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+        startup_cpu_boost = true
+      }
+
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "GCP_REGION"
+        value = var.region
+      }
+      env {
+        name  = "GCS_BUCKET_PROCESSED"
+        value = "brainz-processed"
+      }
+      env {
+        name = "GOOGLE_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = data.google_secret_manager_secret.google_api.secret_id
+            version = "latest"
+          }
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "dashboard_public" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.dashboard.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
 output "api_url" {
   description = "URL publique de l'API Cloud Run"
   value       = google_cloud_run_v2_service.api.uri
+}
+
+output "dashboard_url" {
+  description = "URL publique du Dashboard Cloud Run"
+  value       = google_cloud_run_v2_service.dashboard.uri
 }
