@@ -10,7 +10,6 @@ from typing import Optional
 import json
 import re
 import os
-from google.cloud import storage
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement depuis .env
