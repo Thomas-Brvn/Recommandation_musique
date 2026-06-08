@@ -7,6 +7,7 @@ on:
       - src/**
       - Dockerfile
       - Dockerfile.dashboard
+      - .dockerignore
       - dashboard.py
       - templates/**
       - pyproject.toml
