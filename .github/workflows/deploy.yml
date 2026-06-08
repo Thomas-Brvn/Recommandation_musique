@@ -1,0 +1,51 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - Dockerfile
+      - pyproject.toml
+      - uv.lock
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: projetetude-497218
+  REGION: europe-north1
+  REGISTRY: europe-north1-docker.pkg.dev
+  IMAGE: europe-north1-docker.pkg.dev/projetetude-497218/music-api/music-api
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "terraform-ci@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build & Push Docker image
+        run: |
+          docker build -t ${{ env.IMAGE }}:${{ github.sha }} -t ${{ env.IMAGE }}:latest .
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy music-api \
+            --image ${{ env.IMAGE }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --quiet
