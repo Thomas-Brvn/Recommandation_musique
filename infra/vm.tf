@@ -26,6 +26,45 @@ resource "google_compute_instance" "vm_spotify" {
 
   metadata = {
     enable-osconfig = "TRUE"
+    startup-script  = <<-EOF
+      #!/bin/bash
+      set -e
+      exec > /var/log/startup-script.log 2>&1
+
+      # Outils système
+      apt-get update -q
+      apt-get install -y -q git curl python3-pip python3-venv build-essential
+
+      # uv (gestionnaire de paquets Python)
+      export HOME=/root
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      export PATH="/root/.local/bin:$PATH"
+      echo 'export PATH="/root/.local/bin:$PATH"' >> /root/.bashrc
+
+      # Cloner le repo
+      cd /opt
+      if [ ! -d "Recommandation_musique" ]; then
+        git clone https://github.com/Thomas-Brvn/Recommandation_musique.git
+      fi
+      cd Recommandation_musique
+
+      # Installer les dépendances (sans Airflow ni Spark pour le démarrage)
+      uv sync
+
+      # Initialiser Airflow
+      export AIRFLOW_HOME=/opt/Recommandation_musique/.airflow
+      uv sync --extra airflow
+      uv run airflow db migrate
+      uv run airflow users create \
+        --username admin \
+        --password admin \
+        --firstname Admin \
+        --lastname User \
+        --role Admin \
+        --email alphonsemarcay697@gmail.com || true
+
+      echo "✅ Setup terminé"
+    EOF
   }
 
   scheduling {
