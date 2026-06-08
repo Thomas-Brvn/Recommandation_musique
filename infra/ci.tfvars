@@ -1,9 +1,9 @@
 project_id   = "projetetude-497218"
-region       = "us-central1"
-zone         = "us-central1-b"
+region       = "europe-north1"
+zone         = "europe-north1-a"
 vm_name      = "vm-spotify"
 machine_type = "e2-medium"
-disk_size_gb = 10
+disk_size_gb = 40
 disk_image   = "debian-cloud/debian-12"
 ssh_user     = "alphonsemarcay"
 

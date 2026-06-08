@@ -31,3 +31,17 @@ resource "google_compute_firewall" "vm_spotify_portainer" {
   source_ranges = var.allowed_ssh_cidrs
   target_tags   = ["vm-spotify"]
 }
+
+resource "google_compute_firewall" "vm_spotify_airflow" {
+  name    = "vm-spotify-allow-airflow"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  direction     = "INGRESS"
+  source_ranges = var.allowed_ssh_cidrs
+  target_tags   = ["vm-spotify"]
+}
