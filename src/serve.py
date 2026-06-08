@@ -3,7 +3,6 @@
 Script de démarrage du serveur API.
 """
 import argparse
-import os
 
 import uvicorn
 

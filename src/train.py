@@ -58,7 +58,7 @@ def train_model(
     print(f"Interactions: {user_item_matrix.nnz:,}")
 
     # Créer le modèle
-    print(f"\nConfiguration du modèle:")
+    print("\nConfiguration du modèle:")
     print(f"  - Facteurs latents: {factors}")
     print(f"  - Régularisation: {regularization}")
     print(f"  - Itérations: {iterations}")
@@ -107,7 +107,7 @@ def train_model(
         print(f"  {i}. {rec['track']} (score: {rec['score']:.3f})")
 
     # Similaires
-    print(f"\nTracks similaires au premier résultat:")
+    print("\nTracks similaires au premier résultat:")
     if recommendations:
         similar = recommender.similar_items(recommendations[0]['item_id'], n=3)
         for item_id, score in similar:

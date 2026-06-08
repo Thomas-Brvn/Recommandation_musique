@@ -5,7 +5,6 @@ Entièrement async : google-cloud-storage et calculs ALS exécutés dans un thre
 import asyncio
 import io
 import json
-import os
 from pathlib import Path
 from typing import List, Optional
 

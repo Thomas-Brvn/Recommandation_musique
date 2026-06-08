@@ -89,7 +89,7 @@ def launch(instances_client: compute_v1.InstancesClient,
     print(f"Instance    : {MACHINE_TYPE}")
     print(f"Bucket GCS  : {GCS_BUCKET}")
     print(f"Zone        : {GCP_ZONE}")
-    print(f"Coût estimé : < 0.05€")
+    print("Coût estimé : < 0.05€")
     print("=" * 50)
 
     disk_image = get_debian_image(images_client)
@@ -207,7 +207,7 @@ def main():
 
     instance_name = launch(instances_client, images_client)
 
-    print(f"\nCommandes utiles :")
+    print("\nCommandes utiles :")
     print(f"  Logs   : gcloud compute instances get-serial-port-output {instance_name} --zone={GCP_ZONE}")
     print(f"  Statut : gcloud compute instances describe {instance_name} --zone={GCP_ZONE} --format='get(status)'")
     print(f"  Résultat: gsutil ls gs://{GCS_BUCKET}/incrementals/ | tail -5")

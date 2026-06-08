@@ -6,7 +6,7 @@ Calcule les métriques: Precision@K, Recall@K, NDCG@K, Coverage, Novelty.
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 from scipy import sparse
@@ -209,13 +209,13 @@ def print_results(results: Dict):
     # Coverage
     if 'coverage' in results:
         cov = results['coverage']
-        print(f"\n📈 Coverage:")
+        print("\n📈 Coverage:")
         print(f"  {cov['value']*100:.2f}% ({cov['n_items_recommended']:,}/{cov['n_items_total']:,} items)")
 
     # Novelty
     if 'novelty' in results:
         nov = results['novelty']
-        print(f"\n🆕 Novelty:")
+        print("\n🆕 Novelty:")
         print(f"  {nov['value']:.2f} (popularité moyenne: {nov['avg_popularity']:.6f})")
 
 
@@ -244,7 +244,7 @@ def main():
     model = ALSRecommender.load(args.model, user_item_matrix=full_matrix)
 
     # Charger les matrices train/test
-    print(f"Chargement des matrices train/test...")
+    print("Chargement des matrices train/test...")
     train_matrix = sparse.load_npz(args.train)
     test_matrix = sparse.load_npz(args.test)
 

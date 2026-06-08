@@ -305,7 +305,7 @@ def deduplicate_tracks(
 
         return True
 
-    print(f"\nComparaisons fuzzy...")
+    print("\nComparaisons fuzzy...")
     seen_pairs: set[tuple[str, str]] = set()
     fuzzy_count = 0
 

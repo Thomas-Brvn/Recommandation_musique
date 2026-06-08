@@ -22,7 +22,7 @@ Structure ta réponse ainsi :
 
 Pour chaque festival mentionné, inclure :
 - 🎪 Nom du festival
-- 📅 Dates  
+- 📅 Dates
 - 📍 Lieu
 - 🎤 Artistes notables (les plus connus en premier, max 5-6)
 - 🎟️ Billetterie (si disponible)
@@ -47,7 +47,7 @@ Bonne nouvelle ! Orelsan sera sur scène dans plusieurs festivals cet été 🔥
 🎟️ solidays.org
 
 **🎪 Les Vieilles Charrues**
-📅 16 - 19 juillet 2026  
+📅 16 - 19 juillet 2026
 📍 Carhaix-Plouguer (Finistère)
 🎤 Orelsan, Katy Perry, Gims, Aya Nakamura, Nick Cave
 🎟️ vieillescharrues.asso.fr

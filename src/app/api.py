@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-from agent.agent import ask
+from agent.agent import ask  # noqa: E402
 
 log = logging.getLogger("festival_api")
 

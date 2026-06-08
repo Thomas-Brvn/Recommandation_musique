@@ -32,19 +32,19 @@ def scrape_festivals(url: str) -> list[Festival]:
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
-    
+
     response = requests.get(url, headers=headers)
     response.raise_for_status()
-    
+
     soup = BeautifulSoup(response.text, 'html.parser')
     festivals = []
-    
+
     # Trouver tous les h3 (noms des festivals)
     h3_tags = soup.find_all('h3')
-    
+
     for h3 in h3_tags:
         nom_complet = h3.get_text(strip=True)
-        
+
         # Extraire le nom et les dates
         match = re.match(r'^(.+?)\s*:\s*(.+)$', nom_complet)
         if match:
@@ -52,23 +52,23 @@ def scrape_festivals(url: str) -> list[Festival]:
             dates = match.group(2).strip()
         else:
             continue
-        
+
         # Trouver le contenu suivant le h3
         sibling = h3.find_next_sibling()
-        
+
         lieu = ""
         artistes = []
         billetterie = None
-        
+
         while sibling and sibling.name != 'h3' and sibling.name != 'h2':
             text = sibling.get_text(strip=True)
-            
+
             # Chercher le lieu (ligne commençant par les dates)
             if text.startswith('Du ') or text.startswith('Le '):
                 lieu_match = re.search(r'(?:à|au|dans)\s+(.+?)(?:\s*La billetterie|$)', text)
                 if lieu_match:
                     lieu = lieu_match.group(1).strip()
-            
+
             # Chercher les liens de billetterie
             links = sibling.find_all('a', href=True)
             for link in links:
@@ -81,16 +81,16 @@ def scrape_festivals(url: str) -> list[Festival]:
                     ]
                 ):
                     billetterie = href if href.startswith('http') else None
-            
+
             # Chercher les artistes (liens vers /artiste/)
             artiste_links = sibling.find_all('a', href=re.compile(r'/artiste/'))
             for link in artiste_links:
                 artiste = link.get_text(strip=True)
                 if artiste and artiste not in artistes:
                     artistes.append(artiste)
-            
+
             sibling = sibling.find_next_sibling()
-        
+
         if nom and dates:
             festivals.append(Festival(
                 nom=nom,
@@ -99,7 +99,7 @@ def scrape_festivals(url: str) -> list[Festival]:
                 artistes=artistes,
                 billetterie_url=billetterie
             ))
-    
+
     return festivals
 
 
@@ -127,43 +127,17 @@ def upload_to_s3(
     file_path: str,
     bucket_name: str,
     s3_key: str,
-    region_name: str = "eu-west-3"
 ) -> bool:
-    """
-    Upload un fichier vers S3 en utilisant les credentials du .env
-    
-    Variables attendues dans .env:
-        
-        
-    """
-    
-    
-    
-    if not aws_access_key or not aws_secret_key:
-        print("❌ Credentials AWS non trouvés dans le fichier .env")
-        print("   Assurez-vous que 
-        return False
-    
+    """Upload un fichier vers GCS."""
     try:
-        s3_client = 
-            's3',
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            region_name=region_name
-        )
-        
-        s3_client.upload_file(
-            file_path,
-            bucket_name,
-            s3_key,
-            ExtraArgs={'ContentType': 'application/json'}
-        )
-        
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(s3_key)
+        blob.upload_from_filename(file_path, content_type='application/json')
         print(f"✅ Uploadé vers gs://{bucket_name}/{s3_key}")
         return True
-        
     except Exception as e:
-        print(f"❌ Erreur S3: {e}")
+        print(f"❌ Erreur GCS: {e}")
         return False
 
 
@@ -172,20 +146,20 @@ if __name__ == "__main__":
     BUCKET_NAME = "projet-etude-m2"
     S3_PREFIX = "data_musique/festival/"
     FILENAME = "festivals_2026.json"
-    
+
     # 1. Scraper les festivals
     print("🔍 Scraping des festivals...")
     url = "https://www.offi.fr/tendances/concerts/les-grands-festivals-musicaux-de-lete-2026-942.html"
     festivals = scrape_festivals(url)
     print(f"   {len(festivals)} festivals trouvés")
-    
+
     # 2. Exporter en JSON local
     print("\n💾 Export JSON local...")
     json_path = export_to_json(festivals, FILENAME)
-    
+
     # 3. Upload vers S3
     print("\n☁️  Upload vers S3...")
     s3_key = f"{S3_PREFIX}{FILENAME}"
     upload_to_s3(json_path, BUCKET_NAME, s3_key)
-    
+
     print("\n✨ Terminé !")

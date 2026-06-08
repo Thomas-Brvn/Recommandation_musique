@@ -11,13 +11,12 @@ Usage:
     python scripts/run_full_pipeline_gce.py --monitor
 """
 import os
-import sys
 import json
 import time
 import argparse
 from pathlib import Path
 
-from google.cloud import compute_v1, storage
+from google.cloud import compute_v1
 
 GCP_PROJECT    = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
 GCP_REGION     = os.getenv("GCP_REGION", "europe-north1")
@@ -93,7 +92,7 @@ def launch(instances_client, images_client, project: str, zone: str,
     print("=" * 50)
     print(f"Machine     : {MACHINE_TYPE}")
     print(f"Zone        : {zone}")
-    print(f"Coût estimé : ~0.40€ total")
+    print("Coût estimé : ~0.40€ total")
     print("=" * 50)
 
     image = images_client.get_from_family(project="debian-cloud", family="debian-11")
@@ -153,13 +152,11 @@ def main():
 
     instances_client = compute_v1.InstancesClient()
     images_client    = compute_v1.ImagesClient()
-    gcs_client       = storage.Client(project=GCP_PROJECT)
-
     instance_name = launch(instances_client, images_client, GCP_PROJECT, GCP_ZONE,
                            GCS_RAW_LB, GCS_PROCESSED)
 
     print(f"\n✅ Instance lancée : {instance_name}")
-    print(f"\nCommandes utiles :")
+    print("\nCommandes utiles :")
     print(f"  Logs   : gcloud compute instances get-serial-port-output {instance_name} --zone={GCP_ZONE}")
     print(f"  Statut : gcloud compute instances describe {instance_name} --zone={GCP_ZONE} --format='get(status)'")
     print(f"  Résultats: gsutil ls gs://{GCS_PROCESSED}/models/")

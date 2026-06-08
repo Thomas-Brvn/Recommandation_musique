@@ -10,11 +10,9 @@ Utilise:
 Coût estimé: ~0.10-0.20€ total
 """
 import os
-import sys
 import json
 import time
 import argparse
-from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -401,7 +399,7 @@ def launch_test_instance(ec2_client, iam_client, max_dumps: int = 2) -> str:
     print("=" * 60)
     print(f"Dumps à traiter: {max_dumps}")
     print(f"Instance: {TEST_INSTANCE_TYPE}")
-    print(f"Coût estimé: ~0.10-0.20€")
+    print("Coût estimé: ~0.10-0.20€")
     print("=" * 60)
 
     # Rôle IAM
@@ -415,7 +413,7 @@ def launch_test_instance(ec2_client, iam_client, max_dumps: int = 2) -> str:
     user_data = get_user_data_script(S3_BUCKET, max_dumps)
 
     # Lancer l'instance
-    print(f"\nLancement de l'instance...")
+    print("\nLancement de l'instance...")
 
     response = ec2_client.run_instances(
         ImageId=ami_id,
@@ -475,17 +473,17 @@ def monitor_test(ec2_client, s3_client, instance_id: str):
                 print("✅ TEST TERMINÉ AVEC SUCCÈS!")
                 print(f"{'=' * 60}")
                 print(f"Durée: {mins}m {secs}s")
-                print(f"\nRésultats sur S3:")
+                print("\nRésultats sur S3:")
                 print(f"  Modèle: s3://{S3_BUCKET}/test_models/")
                 print(f"  Données: s3://{S3_BUCKET}/test_processed/")
-                print(f"\n⚠️  IMPORTANT - Terminer l'instance:")
+                print("\n⚠️  IMPORTANT - Terminer l'instance:")
                 print(f"  python scripts/test_pipeline_ec2.py --terminate {instance_id}")
                 return True
             except ClientError:
                 pass
 
             if state == 'terminated':
-                print(f"\n❌ Instance terminée prématurément!")
+                print("\n❌ Instance terminée prématurément!")
                 return False
 
             print(f"[{mins:02d}:{secs:02d}] Instance: {state:<12}", end='\r')
@@ -494,9 +492,9 @@ def monitor_test(ec2_client, s3_client, instance_id: str):
     except KeyboardInterrupt:
         print(f"\n\nMonitoring arrêté après {mins}m {secs}s")
         print(f"L'instance {instance_id} continue de tourner.")
-        print(f"\nPour voir les logs:")
+        print("\nPour voir les logs:")
         print(f"  python scripts/test_pipeline_ec2.py --logs {instance_id}")
-        print(f"\nPour terminer:")
+        print("\nPour terminer:")
         print(f"  python scripts/test_pipeline_ec2.py --terminate {instance_id}")
         return None
 
@@ -523,7 +521,7 @@ def main():
         ec2_client.terminate_instances(InstanceIds=[args.terminate])
         try:
             s3_client.delete_object(Bucket=S3_BUCKET, Key='status/test_pipeline_completed')
-        except:
+        except Exception:
             pass
         print("Instance terminée.")
         return

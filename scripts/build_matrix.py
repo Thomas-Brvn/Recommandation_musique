@@ -102,7 +102,7 @@ def build_sparse_matrix(
     print(f"Ratio compression: {(n_users * n_items * 4) / (memory_mb * 1024 * 1024):.0f}x")
 
     # Distribution des valeurs
-    print(f"\nDistribution des confidence weights:")
+    print("\nDistribution des confidence weights:")
     print(f"  Min: {user_item_matrix.data.min():.2f}")
     print(f"  Max: {user_item_matrix.data.max():.2f}")
     print(f"  Moyenne: {user_item_matrix.data.mean():.2f}")
@@ -124,7 +124,7 @@ def build_sparse_matrix(
         with open(OUTPUT_ITEM_MAPPING, 'w', encoding='utf-8') as f:
             json.dump(id_to_track, f, ensure_ascii=False)
 
-        print(f"Mappings sauvegardés:")
+        print("Mappings sauvegardés:")
         print(f"  - {OUTPUT_USER_MAPPING}")
         print(f"  - {OUTPUT_ITEM_MAPPING}")
 
@@ -222,7 +222,7 @@ def main():
         sparse.save_npz(train_file, train)
         sparse.save_npz(test_file, test)
 
-        print(f"\nMatrices train/test sauvegardées:")
+        print("\nMatrices train/test sauvegardées:")
         print(f"  - {train_file}")
         print(f"  - {test_file}")
 

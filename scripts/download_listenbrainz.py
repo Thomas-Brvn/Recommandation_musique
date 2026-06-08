@@ -3,7 +3,6 @@
 Script pour télécharger les données ListenBrainz
 """
 
-import os
 import sys
 import subprocess
 import re
@@ -43,8 +42,8 @@ def find_latest_dump():
 def download_file(url, output_path):
     """Télécharge un fichier avec wget (supporte reprise)"""
     print(f"📥 Téléchargement: {url}")
-    print(f"⚠️  ATTENTION: Ce fichier peut faire 50-100 GB et prendre plusieurs heures!")
-    print(f"💡 Conseil: Le téléchargement peut être interrompu et repris avec Ctrl+C")
+    print("⚠️  ATTENTION: Ce fichier peut faire 50-100 GB et prendre plusieurs heures!")
+    print("💡 Conseil: Le téléchargement peut être interrompu et repris avec Ctrl+C")
     print()
 
     try:
@@ -102,7 +101,7 @@ def download_listenbrainz_dump():
     if success and output_path.exists():
         file_size = output_path.stat().st_size / (1024 * 1024 * 1024)
         print("\n" + "=" * 60)
-        print(f"✅ Téléchargement terminé!")
+        print("✅ Téléchargement terminé!")
         print(f"📦 Taille: {file_size:.2f} GB")
         print(f"📂 Données stockées dans: {OUTPUT_DIR.absolute()}")
         print(f"📄 Fichier: {latest_dump}")

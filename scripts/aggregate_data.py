@@ -4,15 +4,12 @@ Script pour agréger les données d'écoutes en un dataset final.
 Crée le fichier listens.parquet avec les colonnes:
 user_id, track_id, artist_id, timestamp, play_count
 """
-import os
 from pathlib import Path
 from typing import Tuple
 
 import json
 
 import pandas as pd
-import numpy as np
-from tqdm import tqdm
 
 # Configuration
 PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
@@ -73,7 +70,7 @@ def aggregate_listens(
     # Appliquer le mapping de déduplication si disponible
     dedup_file = PROCESSED_DIR / "track_dedup_map.json"
     if dedup_file.exists():
-        print(f"\nChargement du mapping de déduplication...")
+        print("\nChargement du mapping de déduplication...")
         with open(dedup_file, encoding='utf-8') as f:
             dedup_map = json.load(f)
         before = df['track_key'].nunique()
@@ -149,7 +146,6 @@ def aggregate_listens(
         'artist': {'to_id': artist_to_id, 'to_name': id_to_artist}
     }
 
-    import json
     mappings_file = PROCESSED_DIR / "mappings.json"
 
     # Convertir les clés int en str pour JSON

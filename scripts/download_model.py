@@ -56,7 +56,7 @@ def download_model(s3_client, bucket: str):
         print(f"   Vérifie le statut sur S3: gsutil ls gs://{bucket}/status/")
         return False
 
-    print(f"\n✅ Pipeline terminé. Téléchargement des fichiers...\n")
+    print("\n✅ Pipeline terminé. Téléchargement des fichiers...\n")
 
     # Fichiers à télécharger
     files_to_download = [

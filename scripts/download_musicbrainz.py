@@ -3,7 +3,6 @@
 Script pour télécharger les données MusicBrainz
 """
 
-import os
 import sys
 import subprocess
 import hashlib

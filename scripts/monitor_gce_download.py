@@ -7,7 +7,6 @@ Affiche les logs et le statut en temps réel
 import sys
 import json
 import time
-import subprocess
 from pathlib import Path
 
 from google.cloud import compute_v1, storage
