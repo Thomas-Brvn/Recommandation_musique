@@ -46,6 +46,9 @@ jobs:
           docker push ${{ env.IMAGE_API }}:${{ github.sha }}
           docker push ${{ env.IMAGE_API }}:latest
 
+      - name: Debug build context
+        run: ls -la dashboard.py templates/
+
       - name: Build & Push Dashboard image
         run: |
           docker build --no-cache -f Dockerfile.dashboard -t ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }} -t ${{ env.IMAGE_DASHBOARD }}:latest .
