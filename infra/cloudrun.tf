@@ -19,11 +19,17 @@ resource "google_cloud_run_v2_service" "api" {
   name     = "music-api"
   location = var.region
 
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+    ]
+  }
+
   template {
     service_account = google_service_account.cloudrun.email
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/music-api/music-api:latest"
+      image = "us-docker.pkg.dev/cloudrun-samples/hello:latest"
 
       ports {
         container_port = 8000
