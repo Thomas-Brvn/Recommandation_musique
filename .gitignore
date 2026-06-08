@@ -64,3 +64,16 @@ models/
 uv.lock
 CLAUDE.md
 .gitignore
+
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+!ci.tfvars
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
