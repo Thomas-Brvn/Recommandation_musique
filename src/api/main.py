@@ -47,12 +47,12 @@ except Exception as _e:
 _festival_sessions: dict[str, list] = {}
 
 # Configuration GCS
-GCS_BUCKET  = os.getenv("GCS_BUCKET_PROCESSED", "brainz-processed")
-GCP_PROJECT = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
-S3_MODEL_KEY    = os.getenv("S3_MODEL_KEY",    "models/als_model.pkl")
-S3_MATRIX_KEY   = os.getenv("S3_MATRIX_KEY",   "processed/user_item_matrix.npz")
-S3_MAPPINGS_KEY = os.getenv("S3_MAPPINGS_KEY",  "processed/mappings.json")
-S3_CATALOG_KEY  = os.getenv("S3_CATALOG_KEY",   "processed/track_dedup_map.json")
+GCS_BUCKET       = os.getenv("GCS_BUCKET_PROCESSED", "brainz-processed")
+GCP_PROJECT      = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
+GCS_MODEL_KEY    = os.getenv("GCS_MODEL_KEY",    "models/als_model.pkl")
+GCS_MATRIX_KEY   = os.getenv("GCS_MATRIX_KEY",   "processed/user_item_matrix.npz")
+GCS_MAPPINGS_KEY = os.getenv("GCS_MAPPINGS_KEY",  "processed/mappings.json")
+GCS_CATALOG_KEY  = os.getenv("GCS_CATALOG_KEY",   "processed/track_dedup_map.json")
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -147,9 +147,9 @@ async def _load_model():
     if GCS_BUCKET:
         await service.load_from_gcs(
             bucket=GCS_BUCKET,
-            model_key=S3_MODEL_KEY,
-            matrix_key=S3_MATRIX_KEY,
-            mappings_key=S3_MAPPINGS_KEY,
+            model_key=GCS_MODEL_KEY,
+            matrix_key=GCS_MATRIX_KEY,
+            mappings_key=GCS_MAPPINGS_KEY,
             project=GCP_PROJECT,
         )
     elif MODEL_PATH.exists() and MATRIX_PATH.exists():
@@ -168,7 +168,7 @@ async def _load_model():
 async def _load_catalog():
     """Charge le catalogue de tracks depuis GCS."""
     if GCS_BUCKET:
-        await catalog.load_from_gcs(bucket=GCS_BUCKET, key=S3_CATALOG_KEY, project=GCP_PROJECT)
+        await catalog.load_from_gcs(bucket=GCS_BUCKET, key=GCS_CATALOG_KEY, project=GCP_PROJECT)
     else:
         raise FileNotFoundError("GCS_BUCKET_PROCESSED requis pour charger le catalogue.")
 
@@ -307,7 +307,7 @@ async def user_history(
 @app.post("/reload", tags=["Admin"])
 async def reload_model():
     """
-    Recharge le modèle (depuis S3 ou disque).
+    Recharge le modèle (depuis GCS ou disque).
     Utile après un réentraînement, sans redémarrer l'API.
     """
     try:

@@ -285,7 +285,7 @@ class ALSRecommender:
 
     @classmethod
     def load_from_bytes(cls, data: bytes, user_item_matrix: Optional[sparse.csr_matrix] = None) -> 'ALSRecommender':
-        """Charge un modèle depuis des bytes (ex: stream S3)."""
+        """Charge un modèle depuis des bytes (ex: stream GCS)."""
         import io
         state = pickle.load(io.BytesIO(data))
         return cls._from_state(state, user_item_matrix)

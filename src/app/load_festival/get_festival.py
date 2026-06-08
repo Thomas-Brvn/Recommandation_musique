@@ -1,6 +1,6 @@
 """
 Scraper pour les festivals musicaux de l'été 2026
-Avec export JSON vers Amazon S3
+Avec export JSON vers Google Cloud Storage
 """
 
 import requests
@@ -123,18 +123,18 @@ def export_to_json(festivals: list[Festival], filename: str = "festivals_2026.js
     return filepath
 
 
-def upload_to_s3(
+def upload_to_gcs(
     file_path: str,
     bucket_name: str,
-    s3_key: str,
+    gcs_key: str,
 ) -> bool:
     """Upload un fichier vers GCS."""
     try:
         client = storage.Client()
         bucket = client.bucket(bucket_name)
-        blob = bucket.blob(s3_key)
+        blob = bucket.blob(gcs_key)
         blob.upload_from_filename(file_path, content_type='application/json')
-        print(f"✅ Uploadé vers gs://{bucket_name}/{s3_key}")
+        print(f"✅ Uploadé vers gs://{bucket_name}/{gcs_key}")
         return True
     except Exception as e:
         print(f"❌ Erreur GCS: {e}")
@@ -142,9 +142,9 @@ def upload_to_s3(
 
 
 if __name__ == "__main__":
-    # Configuration S3
+    # Configuration GCS
     BUCKET_NAME = "projet-etude-m2"
-    S3_PREFIX = "data_musique/festival/"
+    GCS_PREFIX = "data_musique/festival/"
     FILENAME = "festivals_2026.json"
 
     # 1. Scraper les festivals
@@ -157,9 +157,9 @@ if __name__ == "__main__":
     print("\n💾 Export JSON local...")
     json_path = export_to_json(festivals, FILENAME)
 
-    # 3. Upload vers S3
-    print("\n☁️  Upload vers S3...")
-    s3_key = f"{S3_PREFIX}{FILENAME}"
-    upload_to_s3(json_path, BUCKET_NAME, s3_key)
+    # 3. Upload vers GCS
+    print("\n☁️  Upload vers GCS...")
+    gcs_key = f"{GCS_PREFIX}{FILENAME}"
+    upload_to_gcs(json_path, BUCKET_NAME, gcs_key)
 
     print("\n✨ Terminé !")
