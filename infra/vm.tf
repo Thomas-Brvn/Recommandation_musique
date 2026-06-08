@@ -56,6 +56,51 @@ resource "google_compute_instance" "vm_spotify" {
       uv sync --extra airflow
       uv run airflow db migrate
 
+      # Service systemd pour Airflow
+      cat > /etc/systemd/system/airflow.service <<'UNIT'
+[Unit]
+Description=Airflow Standalone
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/Recommandation_musique
+Environment="AIRFLOW_HOME=/opt/Recommandation_musique/.airflow"
+Environment="PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/root/.local/bin/uv run airflow standalone
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+      # Service systemd pour l'API FastAPI
+      cat > /etc/systemd/system/fastapi.service <<'UNIT'
+[Unit]
+Description=Music Recommendation FastAPI
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/Recommandation_musique
+Environment="PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EnvironmentFile=/opt/Recommandation_musique/.env
+ExecStart=/root/.local/bin/uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+      # Activer et démarrer les services
+      systemctl daemon-reload
+      systemctl enable airflow fastapi
+      systemctl start airflow fastapi
+
       echo "✅ Setup terminé"
     EOF
   }
