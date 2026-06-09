@@ -11,13 +11,12 @@ Usage:
     python scripts/run_pipeline_gce.py --cpu-only  # sans GPU
 """
 import os
-import sys
 import json
 import time
 import argparse
 from pathlib import Path
 
-from google.cloud import compute_v1, storage
+from google.cloud import compute_v1
 
 GCP_PROJECT   = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
 GCP_REGION    = os.getenv("GCP_REGION", "europe-north1")

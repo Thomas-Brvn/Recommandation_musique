@@ -25,8 +25,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.app.load_festival.get_festival import scrape_festivals, export_to_json
-from src.app.load_festival.festival_to_vectorstore import (
+from src.app.load_festival.get_festival import scrape_festivals, export_to_json  # noqa: E402
+from src.app.load_festival.festival_to_vectorstore import (  # noqa: E402
     load_festivals_from_file,
     create_vector_store,
 )

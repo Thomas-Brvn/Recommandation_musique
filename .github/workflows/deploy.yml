@@ -1,0 +1,79 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - Dockerfile
+      - Dockerfile.dashboard
+      - .dockerignore
+      - dashboard.py
+      - templates/**
+      - pyproject.toml
+      - uv.lock
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: projetetude-497218
+  REGION: europe-north1
+  REGISTRY: europe-north1-docker.pkg.dev
+  IMAGE_API: europe-north1-docker.pkg.dev/projetetude-497218/music-api/music-api
+  IMAGE_DASHBOARD: europe-north1-docker.pkg.dev/projetetude-497218/music-api/music-dashboard
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "terraform-ci@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build & Push API image
+        run: |
+          docker build -t ${{ env.IMAGE_API }}:${{ github.sha }} -t ${{ env.IMAGE_API }}:latest .
+          docker push ${{ env.IMAGE_API }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_API }}:latest
+
+      - name: Debug build context
+        run: |
+          echo "=== dashboard.py ==="
+          ls -la dashboard.py || echo "ABSENT"
+          echo "=== .dockerignore content ==="
+          cat .dockerignore
+          echo "=== .dockerignore size ==="
+          wc -c .dockerignore
+
+      - name: Build & Push Dashboard image
+        run: |
+          docker build --no-cache -f Dockerfile.dashboard -t ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }} -t ${{ env.IMAGE_DASHBOARD }}:latest .
+          docker push ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_DASHBOARD }}:latest
+
+      - name: Deploy API to Cloud Run
+        run: |
+          gcloud run deploy music-api \
+            --image ${{ env.IMAGE_API }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --quiet
+
+      - name: Deploy Dashboard to Cloud Run
+        run: |
+          gcloud run deploy music-dashboard \
+            --image ${{ env.IMAGE_DASHBOARD }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --quiet

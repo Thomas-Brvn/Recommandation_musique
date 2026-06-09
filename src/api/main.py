@@ -8,15 +8,16 @@ import uuid
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-load_dotenv()
 from typing import List, Optional
 
+from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+load_dotenv()
 
 from .catalog import CatalogService
 from .cover_service import get_cover_url, get_track_info

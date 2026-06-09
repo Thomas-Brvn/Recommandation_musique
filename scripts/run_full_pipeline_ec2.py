@@ -10,11 +10,9 @@ Utilise:
 Coût estimé: ~0.10€/h × 2-4h = ~0.40€ total
 """
 import os
-import sys
 import json
 import time
 import argparse
-from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -524,7 +522,7 @@ def launch_pipeline_instance(ec2_client, iam_client) -> str:
     print("=" * 60)
     print(f"Instance: {INSTANCE_TYPE} (16 GB RAM)")
     print(f"Bucket: {S3_BUCKET}")
-    print(f"Coût estimé: ~0.10€/h × 2-4h = ~0.40€")
+    print("Coût estimé: ~0.10€/h × 2-4h = ~0.40€")
     print("=" * 60)
 
     # Rôle IAM
@@ -538,7 +536,7 @@ def launch_pipeline_instance(ec2_client, iam_client) -> str:
     user_data = get_user_data_script(S3_BUCKET)
 
     # Lancer l'instance
-    print(f"\nLancement de l'instance...")
+    print("\nLancement de l'instance...")
 
     response = ec2_client.run_instances(
         ImageId=ami_id,
@@ -599,17 +597,17 @@ def monitor_pipeline(ec2_client, s3_client, instance_id: str):
                 print("✅ PIPELINE COMPLET TERMINÉ!")
                 print(f"{'=' * 60}")
                 print(f"Durée: {hours}h {mins}m {secs}s")
-                print(f"\nRésultats sur S3:")
+                print("\nRésultats sur S3:")
                 print(f"  Modèle: s3://{S3_BUCKET}/models/als_model.pkl")
                 print(f"  Données: s3://{S3_BUCKET}/processed/")
-                print(f"\n⚠️  IMPORTANT - Terminer l'instance:")
+                print("\n⚠️  IMPORTANT - Terminer l'instance:")
                 print(f"  python scripts/run_full_pipeline_ec2.py --terminate {instance_id}")
                 return True
             except ClientError:
                 pass
 
             if state == 'terminated':
-                print(f"\n❌ Instance terminée!")
+                print("\n❌ Instance terminée!")
                 return False
 
             print(f"[{hours:02d}:{mins:02d}:{secs:02d}] Instance: {state:<12}", end='\r')
@@ -618,9 +616,9 @@ def monitor_pipeline(ec2_client, s3_client, instance_id: str):
     except KeyboardInterrupt:
         print(f"\n\nMonitoring arrêté après {hours}h {mins}m")
         print(f"L'instance {instance_id} continue de tourner.")
-        print(f"\nPour voir les logs:")
+        print("\nPour voir les logs:")
         print(f"  python scripts/run_full_pipeline_ec2.py --logs {instance_id}")
-        print(f"\nPour terminer:")
+        print("\nPour terminer:")
         print(f"  python scripts/run_full_pipeline_ec2.py --terminate {instance_id}")
         return None
 
@@ -647,7 +645,7 @@ def main():
         ec2_client.terminate_instances(InstanceIds=[args.terminate])
         try:
             s3_client.delete_object(Bucket=S3_BUCKET, Key='status/full_pipeline_completed')
-        except:
+        except Exception:
             pass
         print("Instance terminée.")
         return
@@ -661,7 +659,7 @@ def main():
                 output = response['Output']
                 lines = output.split('\n')
                 # Chercher les lignes de notre script
-                relevant_lines = [l for l in lines if 'cloud-init' in l or 'ÉTAPE' in l or 'PIPELINE' in l or 'Entraînement' in l]
+                relevant_lines = [line for line in lines if 'cloud-init' in line or 'ÉTAPE' in line or 'PIPELINE' in line or 'Entraînement' in line]
                 if relevant_lines:
                     print('\n'.join(relevant_lines[-50:]))
                 else:
@@ -691,7 +689,7 @@ def main():
     print(f"Région: {AWS_REGION}")
     print("")
     print("Commandes utiles:")
-    print(f"  Status:   python scripts/run_full_pipeline_ec2.py --status")
+    print("  Status:   python scripts/run_full_pipeline_ec2.py --status")
     print(f"  Logs:     python scripts/run_full_pipeline_ec2.py --logs {instance_id}")
     print(f"  Terminer: python scripts/run_full_pipeline_ec2.py --terminate {instance_id}")
 

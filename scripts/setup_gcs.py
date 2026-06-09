@@ -72,7 +72,6 @@ def check_bucket_exists(bucket_name: str, project: str) -> bool:
     """Vérifie si un bucket GCS existe."""
     try:
         from google.cloud import storage
-        from google.api_core.exceptions import NotFound
         client = storage.Client(project=project)
         client.get_bucket(bucket_name)
         return True
@@ -108,7 +107,7 @@ def main():
         if cont != 'o':
             sys.exit(1)
 
-    print(f"\n📝 Configuration des buckets GCS")
+    print("\n📝 Configuration des buckets GCS")
     project = input(f"GCP Project ID [{DEFAULT_PROJECT}]: ").strip() or DEFAULT_PROJECT
     region  = input(f"Région GCP [{DEFAULT_REGION}]: ").strip() or DEFAULT_REGION
 

@@ -29,7 +29,7 @@ def get_ubuntu_ami(region):
     """Récupère l'AMI Ubuntu 22.04 LTS la plus récente pour la région"""
     print(f"🔍 Recherche de l'AMI Ubuntu 22.04 pour {region}...")
 
-    cmd = f"""aws ec2 describe-images \
+    cmd = """aws ec2 describe-images \
         \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
@@ -46,7 +46,7 @@ def get_ubuntu_ami(region):
                 ami_id = result[0]
                 print(f"✅ AMI trouvée: {ami_id}")
                 return ami_id
-        except:
+        except Exception:
             pass
 
     return None
@@ -249,7 +249,7 @@ def main():
     bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
     region = config.get("region")
 
-    print(f"\n✅ Configuration")
+    print("\n✅ Configuration")
     print(f"   Bucket: {bucket_name}")
     print(f"   Région: {region}")
 
@@ -272,9 +272,9 @@ def main():
         sys.exit(1)
 
     # Lancer l'instance avec 150 GB (suffisant pour tar + extraction)
-    print(f"\n🚀 Lancement de l'instance EC2...")
-    print(f"   Type: t3.small (2 GB RAM)")
-    print(f"   Stockage: 150 GB")
+    print("\n🚀 Lancement de l'instance EC2...")
+    print("   Type: t3.small (2 GB RAM)")
+    print("   Stockage: 150 GB")
 
     instance_profile = "EC2-S3-Access-Profile"
     instance_type = "t3.small"

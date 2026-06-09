@@ -55,7 +55,7 @@ def get_ubuntu_ami(region):
                 ami_name = result[1] if len(result) > 1 else "Ubuntu 22.04 LTS"
                 print(f"✅ AMI trouvée: {ami_id} ({ami_name})")
                 return ami_id
-        except:
+        except Exception:
             pass
 
     print("⚠️  Impossible de trouver l'AMI automatiquement")
@@ -206,7 +206,7 @@ aws s3 cp /tmp/download-status "s3://$BUCKET_NAME/raw/.download-completed"
 
 def create_instance(region, bucket_name, download_mb, download_lb):
     """Crée et lance l'instance EC2"""
-    print(f"\n🚀 Lancement de l'instance EC2...")
+    print("\n🚀 Lancement de l'instance EC2...")
     print(f"   Région: {region}")
     print(f"   Type: {DEFAULT_INSTANCE_TYPE}")
     print(f"   Télécharger MusicBrainz: {'Oui' if download_mb else 'Non'}")
@@ -284,12 +284,12 @@ def create_instance(region, bucket_name, download_mb, download_lb):
     # Utiliser directement t3.medium (plus fiable)
     instance_type = DEFAULT_INSTANCE_TYPE
     print(f"\n💡 Instance type: {instance_type}")
-    print(f"   Coût estimé: ~0.20 USD pour tout le téléchargement")
+    print("   Coût estimé: ~0.20 USD pour tout le téléchargement")
     print(f"\n🚀 Lancement de l'instance {instance_type}...")
 
     # Essayer d'abord avec t3.small (moins restrictif que t3.medium)
     # Si t3.small échoue aussi, on utilisera t2.small
-    print(f"💡 Tentative avec t3.small (2 vCPU, 2 GB RAM, ~0.025 USD/h)...")
+    print("💡 Tentative avec t3.small (2 vCPU, 2 GB RAM, ~0.025 USD/h)...")
     instance_type = "t3.small"
 
     # Lancer l'instance avec un volume EBS de 150 GB
@@ -312,9 +312,9 @@ def create_instance(region, bucket_name, download_mb, download_lb):
             print("\n⚠️  L'instance demandée n'est pas disponible.")
             print("💡 Suggestions:")
             if instance_type == DEFAULT_INSTANCE_TYPE:
-                print(f"  - Essayez t2.micro (Free Tier) - relancez et choisissez option 1")
+                print("  - Essayez t2.micro (Free Tier) - relancez et choisissez option 1")
             else:
-                print(f"  - Essayez t3.medium (~0.05 USD/h) - relancez et choisissez option 2")
+                print("  - Essayez t3.medium (~0.05 USD/h) - relancez et choisissez option 2")
             print(f"  - Vérifiez que votre compte AWS supporte ce type d'instance dans {region}")
 
         return None
@@ -334,13 +334,13 @@ def monitor_instance(instance_id, region):
     print(f"Instance ID: {instance_id}")
     print(f"Région: {region}")
     print("\n📝 Commandes utiles:")
-    print(f"\n  # Voir les logs en temps réel:")
+    print("\n  # Voir les logs en temps réel:")
     print(f"  aws ec2 get-console-output --instance-id {instance_id} --region {region}")
-    print(f"\n  # Voir le statut:")
+    print("\n  # Voir le statut:")
     print(f"  aws ec2 describe-instances --instance-ids {instance_id} --region {region}")
-    print(f"\n  # Arrêter l'instance:")
+    print("\n  # Arrêter l'instance:")
     print(f"  aws ec2 stop-instances --instance-ids {instance_id} --region {region}")
-    print(f"\n  # Terminer l'instance (supprimer):")
+    print("\n  # Terminer l'instance (supprimer):")
     print(f"  aws ec2 terminate-instances --instance-ids {instance_id} --region {region}")
 
     print("\n💡 Monitoring automatique:")
@@ -371,7 +371,7 @@ def main():
     if config:
         bucket_name = config.get("bucket_name")
         region = config.get("region", DEFAULT_REGION)
-        print(f"✅ Configuration chargée")
+        print("✅ Configuration chargée")
         print(f"   Bucket: {bucket_name}")
         print(f"   Région: {region}")
     else:

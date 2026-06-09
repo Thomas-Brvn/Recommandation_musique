@@ -44,8 +44,8 @@ def upload_file(local_path, s3_path, show_progress=True):
         if show_progress:
             cmd.append("--no-progress")  # On gère nous-même l'affichage
 
-        result = subprocess.run(cmd, check=True, capture_output=False)
-        print(f"   ✅ Upload terminé")
+        subprocess.run(cmd, check=True, capture_output=False)
+        print("   ✅ Upload terminé")
         return True
     except subprocess.CalledProcessError as e:
         print(f"   ❌ Erreur lors de l'upload: {e}")
@@ -88,7 +88,7 @@ def upload_directory(local_dir, s3_prefix, bucket_name):
             "--exclude", "*.keep"  # Exclure les fichiers .keep
         ]
 
-        print(f"🚀 Début de l'upload...")
+        print("🚀 Début de l'upload...")
         subprocess.run(cmd, check=True)
         print(f"\n✅ Upload terminé: {s3_path}")
         return True
@@ -98,7 +98,7 @@ def upload_directory(local_dir, s3_prefix, bucket_name):
 
 def verify_upload(bucket_name, s3_prefix):
     """Vérifie que les fichiers ont bien été uploadés"""
-    print(f"\n🔍 Vérification des fichiers uploadés...")
+    print("\n🔍 Vérification des fichiers uploadés...")
     s3_path = f"s3://{bucket_name}/{s3_prefix}"
 
     try:
@@ -148,7 +148,7 @@ def main():
         print(f"  ✅ MusicBrainz: {len(mb_files)} fichiers ({total_size:.2f} MB)")
         has_mb = True
     else:
-        print(f"  ⚠️  MusicBrainz: Aucune donnée (lancez: python scripts/download_musicbrainz.py)")
+        print("  ⚠️  MusicBrainz: Aucune donnée (lancez: python scripts/download_musicbrainz.py)")
         has_mb = False
 
     # Vérifier les données ListenBrainz
@@ -159,7 +159,7 @@ def main():
         print(f"  ✅ ListenBrainz: {len(lb_files)} fichiers ({total_size/1024:.2f} GB)")
         has_lb = True
     else:
-        print(f"  ⚠️  ListenBrainz: Aucune donnée (lancez: python scripts/download_listenbrainz.py)")
+        print("  ⚠️  ListenBrainz: Aucune donnée (lancez: python scripts/download_listenbrainz.py)")
         has_lb = False
 
     if not has_mb and not has_lb:

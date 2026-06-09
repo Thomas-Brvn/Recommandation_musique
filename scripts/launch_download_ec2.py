@@ -130,7 +130,7 @@ def launch(ec2_client, iam_client) -> str:
     print(f"Instance  : {INSTANCE_TYPE}")
     print(f"Bucket S3 : {S3_BUCKET}")
     print(f"Région    : {AWS_REGION}")
-    print(f"Coût estimé : < 0.05$")
+    print("Coût estimé : < 0.05$")
     print("=" * 50)
 
     instance_profile = get_or_create_iam_role(iam_client)
@@ -210,7 +210,7 @@ def main():
 
     instance_id = launch(ec2_client, iam_client)
 
-    print(f"\nCommandes utiles :")
+    print("\nCommandes utiles :")
     print(f"  Logs    : aws ec2 get-console-output --instance-id {instance_id} --region {AWS_REGION}")
     print(f"  Statut  : aws ec2 describe-instances --instance-ids {instance_id} --region {AWS_REGION} --query 'Reservations[0].Instances[0].State.Name'")
     print(f"  Résultat: aws s3 ls s3://{S3_BUCKET}/raw/listenbrainz/incrementals/ --region {AWS_REGION} | tail -5")

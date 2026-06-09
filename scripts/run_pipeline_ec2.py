@@ -13,10 +13,8 @@ Ce script:
 Coût estimé: ~0.53€/h × 2-4h = ~1-2€ total
 """
 import os
-import sys
 import json
 import time
-import base64
 import argparse
 from pathlib import Path
 
@@ -300,7 +298,6 @@ def launch_ec2_instance(
 
     # User data
     user_data = USER_DATA_SCRIPT.format(s3_bucket=S3_BUCKET)
-    user_data_encoded = base64.b64encode(user_data.encode()).decode()
 
     # Lancer l'instance
     print(f"\nLancement de l'instance {instance_type}...")
@@ -426,8 +423,8 @@ def main():
     print(f"  Stop: aws ec2 stop-instances --instance-ids {instance_id} --region {AWS_REGION}")
     print(f"  Terminer: aws ec2 terminate-instances --instance-ids {instance_id} --region {AWS_REGION}")
     print("")
-    print(f"⚠️  N'oublie pas de terminer l'instance après usage!")
-    print(f"    Coût estimé: ~0.53€/h (GPU) ou ~0.25€/h (CPU)")
+    print("⚠️  N'oublie pas de terminer l'instance après usage!")
+    print("    Coût estimé: ~0.53€/h (GPU) ou ~0.25€/h (CPU)")
 
     if args.monitor:
         monitor_pipeline(ec2_client, s3_client, instance_id)

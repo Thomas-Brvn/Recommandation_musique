@@ -3,9 +3,7 @@
 Script pour extraire les dumps incrémentaux ListenBrainz (.tar.zst)
 """
 import os
-import sys
 import tarfile
-import tempfile
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -112,7 +110,7 @@ def main(max_archives: int = None, parallel: int = 4):
     LOCAL_EXTRACTED_DIR.mkdir(parents=True, exist_ok=True)
 
     # Client S3
-    gcs_client = storage.Client(project=os.getenv('GCP_PROJECT_ID', 'projetetude-497218'))
+    s3_client = storage.Client(project=os.getenv('GCP_PROJECT_ID', 'projetetude-497218'))
 
     # Lister les archives
     print(f"\nRecherche des archives dans gs://{GCS_BUCKET}/{GCS_PREFIX}...")

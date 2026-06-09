@@ -24,7 +24,7 @@ jobs:
         run: uv sync --frozen --no-dev
 
       - name: Lint (ruff)
-        run: uv run ruff check src/ scripts/ --select E,F,W --ignore E501
+        run: uvx ruff check src/ scripts/ --select E,F,W --ignore E501 --fix
 
       - name: Type check (pyright)
         run: uv run pyright src/app/

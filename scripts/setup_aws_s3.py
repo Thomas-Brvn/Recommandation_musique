@@ -72,7 +72,7 @@ def create_bucket(bucket_name, region):
 
 def create_folder_structure(bucket_name):
     """Crée la structure de dossiers dans S3"""
-    print(f"\n📁 Création de la structure de dossiers...")
+    print("\n📁 Création de la structure de dossiers...")
 
     folders = [
         "raw/musicbrainz/",
@@ -99,7 +99,7 @@ def create_folder_structure(bucket_name):
 
 def enable_versioning(bucket_name):
     """Active le versioning sur le bucket (optionnel)"""
-    print(f"\n🔄 Activation du versioning...")
+    print("\n🔄 Activation du versioning...")
     response = input("Voulez-vous activer le versioning? (o/N): ")
 
     if response.lower() == 'o':
@@ -118,7 +118,7 @@ def enable_versioning(bucket_name):
 
 def setup_lifecycle_policy(bucket_name):
     """Configure une politique de cycle de vie (optionnel)"""
-    print(f"\n♻️  Configuration de la politique de cycle de vie...")
+    print("\n♻️  Configuration de la politique de cycle de vie...")
     response = input("Voulez-vous archiver les anciennes données vers Glacier après 90 jours? (o/N): ")
 
     if response.lower() == 'o':
@@ -190,7 +190,7 @@ def main():
         sys.exit(1)
 
     # Demander le nom du bucket
-    print(f"\n📝 Configuration du bucket")
+    print("\n📝 Configuration du bucket")
     bucket_name = input(f"Nom du bucket [{DEFAULT_BUCKET_NAME}]: ").strip()
     if not bucket_name:
         bucket_name = DEFAULT_BUCKET_NAME
@@ -199,7 +199,7 @@ def main():
     if not region:
         region = DEFAULT_REGION
 
-    print(f"\n📋 Récapitulatif:")
+    print("\n📋 Récapitulatif:")
     print(f"  Bucket: {bucket_name}")
     print(f"  Région: {region}")
     response = input("\nContinuer? (O/n): ")

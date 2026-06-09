@@ -26,7 +26,7 @@ def run_aws_command(cmd, check=True):
 
 def get_ubuntu_ami(region):
     print(f"Recherche de l'AMI Ubuntu 22.04 pour {region}...")
-    cmd = f"""aws ec2 describe-images \
+    cmd = """aws ec2 describe-images \
         \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
@@ -40,7 +40,7 @@ def get_ubuntu_ami(region):
             if result and len(result) > 0:
                 print(f"AMI trouvee: {result[0]}")
                 return result[0]
-        except:
+        except Exception:
             pass
     print("Impossible de trouver l'AMI")
     return None
@@ -207,7 +207,7 @@ gsutil cp /tmp/download-status "gs://$BUCKET_NAME/processed/listenbrainz/.listen
     return script.format(bucket_name, DEFAULT_REGION)
 
 def create_instance(region, bucket_name):
-    print(f"\nLancement de l'instance EC2...")
+    print("\nLancement de l'instance EC2...")
     print(f"   Region: {region}")
     print(f"   Type: {INSTANCE_TYPE}")
 
@@ -261,7 +261,7 @@ def main():
     if config:
         bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
         region = config.get("region", DEFAULT_REGION)
-        print(f"Configuration chargee")
+        print("Configuration chargee")
         print(f"   Bucket: {bucket_name}")
         print(f"   Region: {region}")
     else:
@@ -289,10 +289,10 @@ def main():
         print("Instance EC2 lancee!")
         print("=" * 60)
         print(f"Instance ID: {instance_id}")
-        print(f"\nCommandes utiles:")
-        print(f"  # Voir les logs:")
+        print("\nCommandes utiles:")
+        print("  # Voir les logs:")
         print(f"  aws ec2 get-console-output --instance-id {instance_id} --output text | tail -50")
-        print(f"\n  # Terminer l'instance:")
+        print("\n  # Terminer l'instance:")
         print(f"  aws ec2 terminate-instances --instance-ids {instance_id}")
         print("\nDuree estimee: 3-5 heures")
         print("=" * 60)

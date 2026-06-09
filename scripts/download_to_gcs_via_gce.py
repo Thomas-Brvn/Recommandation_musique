@@ -9,11 +9,10 @@ Avantages:
 
 import sys
 import json
-import time
 import os
 from pathlib import Path
 
-from google.cloud import compute_v1, storage
+from google.cloud import compute_v1
 
 DEFAULT_MACHINE_TYPE = "e2-medium"  # 2 vCPU, 4 GB RAM — ~0.05€/h
 GCP_PROJECT = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
@@ -193,7 +192,7 @@ def main():
                                     startup_script, project, zone)
 
     print(f"✅ Instance lancée : {instance_name}")
-    print(f"\nCommandes utiles :")
+    print("\nCommandes utiles :")
     print(f"  Logs   : gcloud compute instances get-serial-port-output {instance_name} --zone={zone}")
     print(f"  Statut : gcloud compute instances describe {instance_name} --zone={zone} --format='get(status)'")
     print(f"  Monitoring : python scripts/monitor_gce_download.py {instance_name} {zone}")

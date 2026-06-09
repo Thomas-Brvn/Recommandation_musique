@@ -6,7 +6,6 @@ Utilise une instance EC2 pour traiter le fichier complet (127 GB)
 
 import sys
 import json
-import time
 import subprocess
 from pathlib import Path
 
@@ -32,7 +31,7 @@ def get_ubuntu_ami(region):
     """Récupère l'AMI Ubuntu 22.04 LTS la plus récente pour la région"""
     print(f"🔍 Recherche de l'AMI Ubuntu 22.04 pour {region}...")
 
-    cmd = f"""aws ec2 describe-images \
+    cmd = """aws ec2 describe-images \
         \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
@@ -47,10 +46,9 @@ def get_ubuntu_ami(region):
             result = json.loads(stdout)
             if result and len(result) > 0:
                 ami_id = result[0]
-                ami_name = result[1] if len(result) > 1 else "Ubuntu 22.04 LTS"
                 print(f"✅ AMI trouvée: {ami_id}")
                 return ami_id
-        except:
+        except Exception:
             pass
 
     print("❌ Impossible de trouver l'AMI automatiquement")
@@ -279,7 +277,7 @@ gsutil cp /tmp/filter-status "gs://$BUCKET_NAME/processed/listenbrainz/.filter-2
 
 def create_instance(region, bucket_name):
     """Crée et lance l'instance EC2"""
-    print(f"\n🚀 Lancement de l'instance EC2...")
+    print("\n🚀 Lancement de l'instance EC2...")
     print(f"   Région: {region}")
     print(f"   Type: {INSTANCE_TYPE}")
 
@@ -343,11 +341,11 @@ def monitor_instance(instance_id, region):
     print(f"Instance ID: {instance_id}")
     print(f"Région: {region}")
     print("\n📝 Commandes utiles:")
-    print(f"\n  # Voir les logs en temps réel:")
+    print("\n  # Voir les logs en temps réel:")
     print(f"  aws ec2 get-console-output --instance-id {instance_id} --output text | tail -50")
-    print(f"\n  # Voir le statut:")
+    print("\n  # Voir le statut:")
     print(f"  aws ec2 describe-instances --instance-ids {instance_id}")
-    print(f"\n  # Terminer l'instance:")
+    print("\n  # Terminer l'instance:")
     print(f"  aws ec2 terminate-instances --instance-ids {instance_id}")
 
     print("\n⏱️  Durée estimée:")
@@ -380,7 +378,7 @@ def main():
     if config:
         bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
         region = config.get("region", DEFAULT_REGION)
-        print(f"✅ Configuration chargée")
+        print("✅ Configuration chargée")
         print(f"   Bucket: {bucket_name}")
         print(f"   Région: {region}")
     else:

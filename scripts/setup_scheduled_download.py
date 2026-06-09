@@ -20,7 +20,6 @@ import time
 import zipfile
 import argparse
 import tempfile
-from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -280,7 +279,7 @@ def setup():
     print("=" * 50)
     print("CONFIGURATION DU JOB AUTOMATIQUE")
     print("=" * 50)
-    print(f"Schedule : chaque lundi à 6h UTC")
+    print("Schedule : chaque lundi à 6h UTC")
     print(f"Bucket   : {S3_BUCKET}")
     print("=" * 50)
 
@@ -292,7 +291,7 @@ def setup():
     print("\nJob configuré avec succès !")
     print(f"Schedule    : {SCHEDULE_EXPRESSION} (chaque lundi 6h UTC)")
     print(f"Lambda      : {LAMBDA_NAME}")
-    print(f"Prochain run: lundi prochain à 6h UTC")
+    print("Prochain run: lundi prochain à 6h UTC")
 
 
 def delete():

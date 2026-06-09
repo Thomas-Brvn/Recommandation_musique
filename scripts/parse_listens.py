@@ -4,9 +4,7 @@ Script pour parser les fichiers JSON lines des écoutes ListenBrainz.
 Transforme les fichiers extraits en un format tabulaire.
 """
 import json
-import os
 from pathlib import Path
-from datetime import datetime
 from typing import Generator
 
 import pandas as pd

@@ -40,7 +40,7 @@ def upload_file(client: storage.Client, local_path: Path, bucket_name: str, gcs_
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(gcs_key)
         blob.upload_from_filename(str(local_path))
-        print(f"   ✅ Terminé")
+        print("   ✅ Terminé")
         return True
     except Exception as e:
         print(f"   ❌ Erreur : {e}")
@@ -91,7 +91,7 @@ def main():
 
     client = storage.Client(project=project)
 
-    print(f"\n📁 Données disponibles :")
+    print("\n📁 Données disponibles :")
 
     mb_dir = DATA_DIR / "musicbrainz"
     mb_files = list(mb_dir.glob("*.tar.xz")) if mb_dir.exists() else []
@@ -100,7 +100,7 @@ def main():
         print(f"  ✅ MusicBrainz  : {len(mb_files)} fichiers ({total:.2f} MB)")
         has_mb = True
     else:
-        print(f"  ⚠️  MusicBrainz  : Aucune donnée")
+        print("  ⚠️  MusicBrainz  : Aucune donnée")
         has_mb = False
 
     lb_dir = DATA_DIR / "listenbrainz"
@@ -110,7 +110,7 @@ def main():
         print(f"  ✅ ListenBrainz : {len(lb_files)} fichiers ({total/1024:.2f} GB)")
         has_lb = True
     else:
-        print(f"  ⚠️  ListenBrainz : Aucune donnée")
+        print("  ⚠️  ListenBrainz : Aucune donnée")
         has_lb = False
 
     if not has_mb and not has_lb:

@@ -13,9 +13,7 @@ Usage:
 """
 import os
 import re
-import sys
 import argparse
-from pathlib import Path
 
 import requests
 from tqdm import tqdm
@@ -36,7 +34,7 @@ def list_available_dumps() -> list[dict]:
     Scrape la page ListenBrainz pour trouver tous les dumps incrémentaux.
     Retourne une liste de dicts: {folder, filename, url}
     """
-    print(f"Recherche des dumps disponibles sur ListenBrainz...")
+    print("Recherche des dumps disponibles sur ListenBrainz...")
     resp = requests.get(BASE_URL + "/", timeout=30)
     resp.raise_for_status()
 

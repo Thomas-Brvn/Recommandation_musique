@@ -26,7 +26,7 @@ def get_ubuntu_ami(region):
     """Récupère l'AMI Ubuntu 22.04 LTS la plus récente pour la région"""
     print(f"🔍 Recherche de l'AMI Ubuntu 22.04 pour {region}...")
 
-    cmd = f"""aws ec2 describe-images \
+    cmd = """aws ec2 describe-images \
         \
         --owners 099720109477 \
         --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
@@ -43,7 +43,7 @@ def get_ubuntu_ami(region):
                 ami_id = result[0]
                 print(f"✅ AMI trouvée: {ami_id}")
                 return ami_id
-        except:
+        except Exception:
             pass
 
     return None
@@ -137,10 +137,10 @@ def load_config():
 
 def create_instance(region, bucket_name):
     """Crée et lance l'instance EC2"""
-    print(f"\n🚀 Lancement de l'instance EC2 pour les fichiers manquants...")
+    print("\n🚀 Lancement de l'instance EC2 pour les fichiers manquants...")
     print(f"   Région: {region}")
-    print(f"   Type: t3.small")
-    print(f"   Fichiers: artist.tar.xz, recording.tar.xz")
+    print("   Type: t3.small")
+    print("   Fichiers: artist.tar.xz, recording.tar.xz")
 
     # Générer le user data script
     user_data = create_user_data_script(bucket_name)
@@ -158,7 +158,7 @@ def create_instance(region, bucket_name):
     instance_profile = "EC2-S3-Access-Profile"
 
     # Lancer l'instance avec 20GB (suffisant pour artist 1.5GB + recording 30MB)
-    print(f"\n🚀 Lancement de l'instance t3.small avec 20GB...")
+    print("\n🚀 Lancement de l'instance t3.small avec 20GB...")
     cmd = f"""aws ec2 run-instances \
         --image-id {ami_id} \
         --instance-type t3.small \
@@ -200,7 +200,7 @@ def main():
     bucket_name = config.get("bucket_raw_lb", config.get("bucket_processed"))
     region = config.get("region")
 
-    print(f"✅ Configuration chargée")
+    print("✅ Configuration chargée")
     print(f"   Bucket: {bucket_name}")
     print(f"   Région: {region}")
 
@@ -226,7 +226,7 @@ def main():
         print(f"Instance ID: {instance_id}")
         print(f"Région: {region}")
         print("\n💡 Monitoring:")
-        print(f"  python scripts/monitor_ec2_download.py")
+        print("  python scripts/monitor_ec2_download.py")
         print("\n⏱️  Durée estimée: 5-10 minutes")
         print("\n⚠️  N'oubliez pas de terminer l'instance après!")
         print("=" * 60)

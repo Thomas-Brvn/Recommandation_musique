@@ -29,7 +29,6 @@ config/
 # Scripts de déploiement non nécessaires au runtime
 scripts/
 dags/
-dashboard.py
 quick_start.sh
 setup.sh
 start_airflow.sh

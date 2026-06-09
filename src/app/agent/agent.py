@@ -53,7 +53,7 @@ agent = create_tool_calling_agent(
 agent_executor = AgentExecutor(
     agent=agent,
     tools=tools,
-    verbose=False,  
+    verbose=False,
     handle_parsing_errors=True,
     max_iterations=3,
 )
@@ -74,9 +74,9 @@ def ask(question: str, chat_history: list = None) -> str:
         "input": question,
         "chat_history": chat_history or [],
     })
-    
+
     return response.get("output", "Désolé, je n'ai pas pu générer une réponse.")
-   
+
 if __name__ == "__main__":
     while True:
         question = input("Question (q pour quitter): ")
