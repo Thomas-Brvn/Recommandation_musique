@@ -48,7 +48,13 @@ jobs:
           docker push ${{ env.IMAGE_API }}:latest
 
       - name: Debug build context
-        run: ls -la dashboard.py templates/
+        run: |
+          echo "=== dashboard.py ==="
+          ls -la dashboard.py || echo "ABSENT"
+          echo "=== .dockerignore content ==="
+          cat .dockerignore
+          echo "=== .dockerignore size ==="
+          wc -c .dockerignore
 
       - name: Build & Push Dashboard image
         run: |
