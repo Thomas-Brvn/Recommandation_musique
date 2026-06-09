@@ -94,33 +94,27 @@ class ALSRecommender:
     ) -> List[Tuple[int, float]]:
         """
         Génère des recommandations pour un utilisateur.
-
-        Args:
-            user_id: ID de l'utilisateur
-            n: Nombre de recommandations
-            filter_already_liked: Exclure les items déjà consommés
-
-        Returns:
-            Liste de (item_id, score)
+        Note: le modèle a été entraîné avec user_item_matrix directement (non-transposée),
+        donc user_factors = embeddings tracks, item_factors = embeddings users.
         """
         if not self.is_fitted:
             raise ValueError("Le modèle n'est pas entraîné. Appelez fit() d'abord.")
 
-        if user_id < 0 or user_id >= self.user_item_matrix.shape[0]:
-            raise ValueError(f"user_id {user_id} hors limites [0, {self.user_item_matrix.shape[0]})")
+        n_users = self.model.item_factors.shape[0]
+        if user_id < 0 or user_id >= n_users:
+            raise ValueError(f"user_id {user_id} hors limites [0, {n_users})")
 
-        # Récupérer les interactions de l'utilisateur
-        user_items = self.user_item_matrix[user_id]
+        # Score(track t | user u) = user_factors[t] · item_factors[u]
+        user_embedding = self.model.item_factors[user_id]          # (factors,)
+        track_scores = self.model.user_factors.dot(user_embedding)  # (n_tracks,)
 
-        # Générer les recommandations
-        item_ids, scores = self.model.recommend(
-            userid=user_id,
-            user_items=user_items,
-            N=n,
-            filter_already_liked_items=filter_already_liked
-        )
+        if filter_already_liked and self.user_item_matrix is not None:
+            liked = self.user_item_matrix[user_id].indices
+            track_scores[liked] = -np.inf
 
-        return list(zip(item_ids.tolist(), scores.tolist()))
+        top_idx = np.argpartition(track_scores, -n)[-n:]
+        top_idx = top_idx[np.argsort(track_scores[top_idx])[::-1]]
+        return list(zip(top_idx.tolist(), track_scores[top_idx].tolist()))
 
     def recommend_batch(
         self,
@@ -159,21 +153,15 @@ class ALSRecommender:
 
     def similar_items(self, item_id: int, n: int = 10) -> List[Tuple[int, float]]:
         """
-        Trouve les items similaires à un item donné.
-
-        Args:
-            item_id: ID de l'item
-            n: Nombre d'items similaires
-
-        Returns:
-            Liste de (item_id, score)
+        Trouve les tracks similaires à un track donné.
+        Note: les embeddings tracks sont dans user_factors → on utilise similar_users.
         """
         if not self.is_fitted:
             raise ValueError("Le modèle n'est pas entraîné. Appelez fit() d'abord.")
 
-        item_ids, scores = self.model.similar_items(item_id, N=n + 1)
+        # Track embeddings sont dans user_factors (modèle entraîné sans transposition)
+        item_ids, scores = self.model.similar_users(item_id, N=n + 1)
 
-        # Exclure l'item lui-même (premier résultat)
         results = list(zip(item_ids[1:].tolist(), scores[1:].tolist()))
         return results[:n]
 

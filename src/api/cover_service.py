@@ -86,9 +86,9 @@ async def get_track_info(artist: str, title: str) -> dict:
         await _throttle()
         try:
             async with httpx.AsyncClient(timeout=6.0) as client:
-                result = await _deezer(client, artist, title)
+                result = await _itunes(client, artist, title)
                 if not result:
-                    result = await _itunes(client, artist, title)
+                    result = await _deezer(client, artist, title)
                 if result:
                     info = result
         except Exception:

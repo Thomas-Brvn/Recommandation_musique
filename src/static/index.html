@@ -16,9 +16,9 @@
       --sidebar:   #070707;
       --card:      #181818;
       --card-hover:#222;
-      --green:     #1DB954;
-      --green-dim: #158a3e;
-      --green-glow:rgba(29,185,84,.25);
+      --green:     #FF6200;
+      --green-dim: #cc4e00;
+      --green-glow:rgba(255,98,0,.25);
       --text:      #fff;
       --muted:     #a7a7a7;
       --divider:   rgba(255,255,255,.07);
@@ -113,7 +113,7 @@
       letter-spacing: .04em; cursor: pointer;
       transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
     }
-    .btn-green:hover { background: #1ed760; transform: scale(1.02); box-shadow: 0 4px 20px var(--green-glow); }
+    .btn-green:hover { background: #ff7a1a; transform: scale(1.02); box-shadow: 0 4px 20px var(--green-glow); }
     .btn-green:active { transform: scale(.98); }
 
     /* ─── Main ───────────────────────────────────────────────────────── */
@@ -249,7 +249,7 @@
 
     .score-badge {
       position: absolute; top: 8px; right: 8px;
-      background: rgba(29,185,84,.9); color: #000;
+      background: rgba(255,98,0,.9); color: #000;
       font-size: .65rem; font-weight: 700;
       padding: 2px 7px; border-radius: 10px;
       font-family: 'Syne', sans-serif;
@@ -302,6 +302,26 @@
     }
     .panel-close:hover { background: rgba(255,255,255,.14); }
     .panel-close svg { width: 14px; height: 14px; fill: currentColor; }
+
+    /* ── Similar artist filter toggle ──────────────────────── */
+    .artist-filter {
+      display: flex; gap: 0;
+      background: rgba(255,255,255,.06); border-radius: 20px;
+      padding: 3px; margin: 0 20px 14px;
+      flex-shrink: 0;
+    }
+    .artist-filter-btn {
+      flex: 1; padding: 5px 0; border: none; background: none;
+      color: var(--muted); font-family: 'Syne', sans-serif;
+      font-size: .65rem; font-weight: 700; letter-spacing: .04em;
+      cursor: pointer; border-radius: 16px;
+      transition: background var(--transition), color var(--transition);
+      white-space: nowrap;
+    }
+    .artist-filter-btn.active {
+      background: var(--green); color: #000;
+    }
+    .artist-filter-btn:not(.active):hover { color: var(--text); }
 
     #similar-list { flex: 1; overflow-y: auto; padding: 12px 8px; }
 
@@ -390,7 +410,7 @@
       opacity: 0; transition: opacity var(--transition);
     }
     .progress-track:hover .progress-fill::after { opacity: 1; }
-    .progress-track:hover .progress-fill { background: #1ed760; }
+    .progress-track:hover .progress-fill { background: #ff7a1a; }
 
     /* Volume */
     .player-extras { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
@@ -609,7 +629,7 @@
       border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; transition: all var(--transition);
     }
-    #chat-send:hover { background: #1ed760; transform: scale(1.07); }
+    #chat-send:hover { background: #ff7a1a; transform: scale(1.07); }
     #chat-send:disabled { background: #2a2a2a; cursor: not-allowed; transform: none; }
     #chat-send svg { width: 16px; height: 16px; fill: #000; }
 
@@ -701,6 +721,15 @@
     .status-dot.loading { background: var(--muted); animation: pulse 1.2s infinite; }
     @keyframes pulse { 0%,100% { opacity:.4; } 50% { opacity:1; } }
     #api-status-text { color: var(--muted); flex: 1; }
+    #load-model-btn {
+      display: none; width: 100%; padding: 8px; border: 1px solid var(--green);
+      background: transparent; color: var(--green); border-radius: 20px;
+      font-family: 'Syne', sans-serif; font-size: .75rem; font-weight: 700;
+      letter-spacing: .04em; cursor: pointer; margin-top: 4px;
+      transition: background var(--transition), color var(--transition);
+    }
+    #load-model-btn:hover { background: var(--green); color: #000; }
+    #load-model-btn:disabled { opacity: .5; cursor: not-allowed; }
 
     /* ── Bannière erreur catalogue ───────────────────────────── */
     #catalog-error-banner {
@@ -755,6 +784,7 @@
       <span class="status-dot loading" id="status-dot"></span>
       <span id="api-status-text">Connexion…</span>
     </div>
+    <button id="load-model-btn" onclick="loadModel()">⚡ Charger le modèle</button>
 
     <div>
       <div class="sidebar-section-title">Ma bibliothèque</div>
@@ -865,6 +895,11 @@
     <button class="panel-close" onclick="closeSimilar()">
       <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
     </button>
+  </div>
+  <div class="artist-filter">
+    <button class="artist-filter-btn" data-filter="same"    onclick="setSimilarFilter('same')">Même artiste</button>
+    <button class="artist-filter-btn active" data-filter="mix" onclick="setSimilarFilter('mix')">Mixte</button>
+    <button class="artist-filter-btn" data-filter="other"   onclick="setSimilarFilter('other')">Autres</button>
   </div>
   <div id="similar-list"></div>
 </div>
@@ -1134,10 +1169,10 @@ function showToast(msg) {
   const t = document.createElement('div');
   t.style.cssText = `
     position:fixed;bottom:calc(var(--player-h) + 16px);left:50%;transform:translateX(-50%);
-    background:#1DB954;color:#000;padding:10px 20px;border-radius:20px;
+    background:#FF6200;color:#000;padding:10px 20px;border-radius:20px;
     font-family:Syne,sans-serif;font-size:.8rem;font-weight:700;
     z-index:1000;animation:fadeUp .25s ease both;
-    box-shadow:0 4px 20px rgba(29,185,84,.4);
+    box-shadow:0 4px 20px rgba(255,98,0,.4);
   `;
   t.textContent = msg;
   document.body.appendChild(t);
@@ -1208,12 +1243,10 @@ async function checkHealth() {
 
     if (data.model_loaded) {
       setStatus('ok', 'API · Modèle prêt');
+      document.getElementById('load-model-btn').style.display = 'none';
     } else {
       setStatus('warn', 'API active · Modèle non chargé');
-      showToast(
-        'Le modèle de recommandation n\'est pas chargé. Les recommandations personnalisées ne seront pas disponibles.',
-        'warning', 8000
-      );
+      document.getElementById('load-model-btn').style.display = 'block';
     }
     // Check festival agent separately
     checkFestivalAgent();
@@ -1238,6 +1271,46 @@ async function checkFestivalAgent() {
   } catch (_) {
     // Network timeout during health probe — ignore, not critical
   }
+}
+
+async function loadModel() {
+  const btn = document.getElementById('load-model-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Chargement…';
+  setStatus('loading', 'Chargement du modèle…');
+
+  // Déclenche le chargement en arrière-plan
+  const r = await fetch('/reload', { method: 'POST' }).catch(() => null);
+  if (!r || !r.ok) {
+    const err = r ? await r.json().catch(() => ({})) : {};
+    setStatus('warn', 'API active · Modèle non chargé');
+    btn.disabled = false;
+    btn.textContent = '⚡ Charger le modèle';
+    showToast(`Erreur : ${err.detail || 'impossible de lancer le chargement'}`, 'error', 0);
+    return;
+  }
+
+  // Polling jusqu'à done ou error
+  let dots = 0;
+  const pollInterval = setInterval(async () => {
+    dots = (dots + 1) % 4;
+    btn.textContent = '⏳ Chargement' + '.'.repeat(dots + 1);
+    try {
+      const s = await fetch('/reload/status').then(r => r.json());
+      if (s.status === 'done') {
+        clearInterval(pollInterval);
+        setStatus('ok', 'API · Modèle prêt');
+        btn.style.display = 'none';
+        showToast('Modèle chargé avec succès !', 'success', 4000);
+      } else if (s.status === 'error') {
+        clearInterval(pollInterval);
+        setStatus('warn', 'API active · Modèle non chargé');
+        btn.disabled = false;
+        btn.textContent = '⚡ Charger le modèle';
+        showToast(`Erreur au chargement : ${s.error || 'inconnue'}`, 'error', 0);
+      }
+    } catch (_) {}
+  }, 3000);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1520,7 +1593,7 @@ async function selectTrack(track) {
   }
 
   // Load similar tracks
-  openSimilar(id, title);
+  openSimilar(id, title, artist);
 }
 
 function togglePlay() {
@@ -1548,13 +1621,19 @@ function updatePlayBtn() {
 /* ══════════════════════════════════════════════════════════════
    Similar panel
 ══════════════════════════════════════════════════════════════ */
-async function openSimilar(itemId, title) {
+let _similarAllTracks = [];   // tous les résultats bruts
+let _similarSourceArtist = ''; // artiste du titre source
+let _similarFilter = 'mix';    // 'same' | 'mix' | 'other'
+
+async function openSimilar(itemId, title, artist = '') {
   const panel = document.getElementById('similar-panel');
   const list  = document.getElementById('similar-list');
   panel.classList.add('open');
   list.innerHTML = '<div class="spinner"></div>';
 
-  const data = await apiFetch(`/similar/${itemId}?n=8`);
+  _similarSourceArtist = artist.trim();
+
+  const data = await apiFetch(`/similar/${itemId}?n=30`);
   list.innerHTML = '';
 
   if (!data || !data.similar_tracks?.length) {
@@ -1562,7 +1641,37 @@ async function openSimilar(itemId, title) {
     return;
   }
 
-  data.similar_tracks.forEach((t, i) => {
+  _similarAllTracks = data.similar_tracks;
+  renderSimilarList();
+}
+
+function setSimilarFilter(filter) {
+  _similarFilter = filter;
+  document.querySelectorAll('.artist-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  renderSimilarList();
+}
+
+function renderSimilarList() {
+  const list = document.getElementById('similar-list');
+  const src  = _similarSourceArtist.toLowerCase();
+
+  const tracks = _similarAllTracks.filter(t => {
+    const same = t.artist.toLowerCase() === src;
+    if (_similarFilter === 'same')  return same;
+    if (_similarFilter === 'other') return !same;
+    return true; // mix
+  }).slice(0, 8);
+
+  if (!tracks.length) {
+    const label = _similarFilter === 'same' ? 'du même artiste' : 'd\'autres artistes';
+    list.innerHTML = `<div style="padding:20px;color:var(--muted);font-size:.8rem;text-align:center">Aucun titre similaire ${label} trouvé.</div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  tracks.forEach((t, i) => {
     const item = document.createElement('div');
     item.className = 'similar-item';
     item.innerHTML = `
@@ -1576,7 +1685,6 @@ async function openSimilar(itemId, title) {
     item.addEventListener('click', () => selectTrack(t));
     list.appendChild(item);
 
-    // Load cover for similar item
     fetchCover(t.artist, t.track).then(url => {
       const el = document.getElementById(`sim-art-${i}`);
       if (url && el) el.src = url;

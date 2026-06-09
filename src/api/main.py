@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -46,16 +46,16 @@ except Exception as _e:
 _festival_sessions: dict[str, list] = {}
 
 # Configuration GCS
-GCS_BUCKET  = os.getenv("GCS_BUCKET_PROCESSED", "brainz-processed")
-GCP_PROJECT = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
-S3_MODEL_KEY    = os.getenv("S3_MODEL_KEY",    "models/als_model.pkl")
-S3_MATRIX_KEY   = os.getenv("S3_MATRIX_KEY",   "processed/user_item_matrix.npz")
-S3_MAPPINGS_KEY = os.getenv("S3_MAPPINGS_KEY",  "processed/mappings.json")
-S3_CATALOG_KEY  = os.getenv("S3_CATALOG_KEY",   "processed/track_dedup_map.json")
+GCS_BUCKET       = os.getenv("GCS_BUCKET_PROCESSED", "brainz-processed")
+GCP_PROJECT      = os.getenv("GCP_PROJECT_ID", "projetetude-497218")
+GCS_MODEL_KEY    = os.getenv("GCS_MODEL_KEY",    "models/als_model.pkl")
+GCS_MATRIX_KEY   = os.getenv("GCS_MATRIX_KEY",   "processed/user_item_matrix.npz")
+GCS_MAPPINGS_KEY = os.getenv("GCS_MAPPINGS_KEY",  "processed/mappings.json")
+GCS_CATALOG_KEY  = os.getenv("GCS_CATALOG_KEY",   "processed/track_dedup_map.json")
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
-# Chemins locaux (fallback si S3 non configuré)
+# Chemins locaux (fallback si GCS non configuré)
 BASE_DIR = Path(__file__).parent.parent.parent
 DATA_DIR = BASE_DIR / "data" / "processed"
 MODELS_DIR = BASE_DIR / "models"
@@ -144,14 +144,19 @@ library  = LibraryService.get_instance()
 async def _load_model():
     """Charge le modèle depuis GCS (prioritaire) ou depuis le disque local."""
     if GCS_BUCKET:
-        await service.load_from_gcs(
-            bucket=GCS_BUCKET,
-            model_key=S3_MODEL_KEY,
-            matrix_key=S3_MATRIX_KEY,
-            mappings_key=S3_MAPPINGS_KEY,
-            project=GCP_PROJECT,
-        )
-    elif MODEL_PATH.exists() and MATRIX_PATH.exists():
+        try:
+            await service.load_from_gcs(
+                bucket=GCS_BUCKET,
+                model_key=GCS_MODEL_KEY,
+                matrix_key=GCS_MATRIX_KEY,
+                mappings_key=GCS_MAPPINGS_KEY,
+                project=GCP_PROJECT,
+            )
+            return
+        except Exception as gcs_err:
+            print(f"⚠️  GCS indisponible ({gcs_err}), tentative locale…")
+
+    if MODEL_PATH.exists() and MATRIX_PATH.exists():
         await service.load(
             model_path=MODEL_PATH,
             matrix_path=MATRIX_PATH,
@@ -159,15 +164,16 @@ async def _load_model():
         )
     else:
         raise FileNotFoundError(
-            "Aucune source de modèle disponible. "
-            "Définissez GCS_BUCKET_PROCESSED ou placez les fichiers localement."
+            f"Aucune source de modèle disponible. "
+            f"GCS inaccessible et fichiers locaux introuvables "
+            f"(cherché : {MODEL_PATH}, {MATRIX_PATH})."
         )
 
 
 async def _load_catalog():
     """Charge le catalogue de tracks depuis GCS."""
     if GCS_BUCKET:
-        await catalog.load_from_gcs(bucket=GCS_BUCKET, key=S3_CATALOG_KEY, project=GCP_PROJECT)
+        await catalog.load_from_gcs(bucket=GCS_BUCKET, key=GCS_CATALOG_KEY, project=GCP_PROJECT)
     else:
         raise FileNotFoundError("GCS_BUCKET_PROCESSED requis pour charger le catalogue.")
 
@@ -303,17 +309,37 @@ async def user_history(
         raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
 
 
+_reload_state: dict = {"status": "idle", "error": None}  # idle | loading | done | error
+
+
 @app.post("/reload", tags=["Admin"])
-async def reload_model():
-    """
-    Recharge le modèle (depuis S3 ou disque).
-    Utile après un réentraînement, sans redémarrer l'API.
-    """
-    try:
-        await _load_model()
-        return {"status": "success", "message": "Modèle rechargé"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur au rechargement: {str(e)}")
+async def reload_model(background_tasks: BackgroundTasks):
+    """Lance le chargement du modèle en arrière-plan et retourne immédiatement."""
+    if _reload_state["status"] == "loading":
+        return {"status": "loading", "message": "Chargement déjà en cours"}
+    _reload_state["status"] = "loading"
+    _reload_state["error"] = None
+
+    async def _do_reload():
+        try:
+            await _load_model()
+            _reload_state["status"] = "done"
+        except Exception as e:
+            _reload_state["status"] = "error"
+            _reload_state["error"] = str(e)
+
+    background_tasks.add_task(_do_reload)
+    return {"status": "loading", "message": "Chargement lancé en arrière-plan"}
+
+
+@app.get("/reload/status", tags=["Admin"])
+async def reload_status():
+    """Retourne l'état du chargement du modèle."""
+    return {
+        "status": _reload_state["status"],
+        "model_loaded": service.is_loaded,
+        "error": _reload_state["error"],
+    }
 
 
 # ---------------------------------------------------------------------------
