@@ -247,6 +247,91 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
+    /* ─── Artist Card ──────────────────────────────────────────────────── */
+    .artist-row {
+      display: flex; gap: 12px; margin-bottom: 24px;
+      overflow-x: auto; padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .artist-row::-webkit-scrollbar { display: none; }
+    .artist-card {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(255,98,0,.18) 0%, var(--card) 100%);
+      border: 1px solid rgba(255,98,0,.3);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 14px;
+      transition: background var(--transition), transform var(--transition);
+      min-width: 220px;
+      animation: fadeUp .25s ease both;
+    }
+    .artist-card:hover {
+      background: linear-gradient(135deg, rgba(255,98,0,.3) 0%, var(--card-hover) 100%);
+      transform: translateY(-2px);
+    }
+    .artist-avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--green); display: flex; align-items: center;
+      justify-content: center; font-size: 1.4rem; flex-shrink: 0;
+    }
+    .artist-info-wrap { overflow: hidden; }
+    .artist-info-name {
+      font-size: .9rem; font-weight: 700; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .artist-info-count {
+      font-size: .75rem; color: var(--green); margin-top: 2px;
+    }
+
+    /* ─── Artist panel (similar to similar panel) ─────────────────────── */
+    #artist-panel {
+      position: fixed; top: 0; right: -420px; width: 400px; height: 100vh;
+      background: var(--sidebar); border-left: 1px solid rgba(255,255,255,.06);
+      z-index: 200; display: flex; flex-direction: column;
+      transition: right .3s cubic-bezier(.4,0,.2,1);
+    }
+    #artist-panel.open { right: 0; }
+    .artist-panel-header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .artist-panel-avatar {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--green); display: flex; align-items: center;
+      justify-content: center; font-size: 1.5rem; flex-shrink: 0;
+    }
+    .artist-panel-name {
+      font-size: 1rem; font-weight: 700; flex: 1;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .artist-panel-count { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+    .artist-panel-close {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(255,255,255,.07); border: none; color: var(--text);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; transition: background var(--transition); flex-shrink: 0;
+    }
+    .artist-panel-close:hover { background: rgba(255,255,255,.14); }
+    #artist-track-list {
+      flex: 1; overflow-y: auto; padding: 8px 0;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent;
+    }
+    .artist-track-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 20px; cursor: pointer;
+      transition: background var(--transition);
+    }
+    .artist-track-item:hover { background: rgba(255,255,255,.06); }
+    .artist-track-num {
+      width: 20px; text-align: right; font-size: .75rem; color: var(--muted); flex-shrink: 0;
+    }
+    .artist-track-title {
+      flex: 1; font-size: .82rem; font-weight: 500; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
     .score-badge {
       position: absolute; top: 8px; right: 8px;
       background: rgba(255,98,0,.9); color: #000;
@@ -755,7 +840,7 @@
 
     <a class="logo" href="#">
       <div class="logo-icon">
-        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18A9 9 0 0 0 12 3zm4.1 12.9c-.2.3-.6.4-.9.2-2.5-1.5-5.6-1.9-9.3-1-.4.1-.7-.2-.8-.5-.1-.4.2-.7.5-.8 4-.9 7.5-.5 10.3 1.2.3.2.4.6.2.9zm1.1-2.4c-.2.3-.7.5-1 .2-2.8-1.7-7.1-2.2-10.4-1.2-.4.1-.9-.1-1-.5-.1-.4.1-.9.5-1 3.8-1.1 8.5-.6 11.7 1.4.3.2.5.7.2 1.1zm.1-2.5c-3.4-2-9-2.2-12.2-1.2-.5.2-1-.2-1.1-.6-.2-.5.2-1 .6-1.1 3.7-1.1 9.9-.9 13.8 1.4.4.3.6.8.3 1.2-.3.4-.9.6-1.4.3z"/></svg>
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 11.5c0-.88-.37-1.68-.97-2.24A3 3 0 0 0 18 4a3 3 0 0 0-2.16.92A3.5 3.5 0 0 0 12 3.5a3.5 3.5 0 0 0-3.84 1.42A3 3 0 0 0 6 4a3 3 0 0 0-2.03 5.26C3.37 9.82 3 10.62 3 11.5c0 1.31.8 2.43 1.94 2.88A3.5 3.5 0 0 0 8.5 18h.5v1.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V18h.5a3.5 3.5 0 0 0 3.56-3.62A3.01 3.01 0 0 0 21 11.5zM9 18a1.5 1.5 0 0 1 0-3h.5v3H9zm5.5 0H14v-3h.5a1.5 1.5 0 0 1 0 3zm.5-4.5h-1.5V12h-1v1.5H11V12h-1v1.5H8.5A1.5 1.5 0 0 1 7 12a1.5 1.5 0 0 1 1.5-1.5H9V9h1v1.5h1V9h1v1.5h.5a1.5 1.5 0 0 1 1.5 1.5 1.5 1.5 0 0 1-1 1.41V13.5z"/></svg>
       </div>
       BrainzMusic
     </a>
@@ -830,8 +915,15 @@
       </div>
       <div class="section-header">
         <h2 id="section-title">Catalogue</h2>
-        <span class="count" id="section-count"></span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="count" id="section-count"></span>
+          <div id="sort-toggle" style="display:none">
+            <button id="sort-btn-relevance" class="artist-filter-btn active" onclick="setSearchSort('relevance')">Pertinence</button>
+            <button id="sort-btn-popularity" class="artist-filter-btn" onclick="setSearchSort('popularity')">Popularité</button>
+          </div>
+        </div>
       </div>
+      <div class="artist-row" id="artist-row" style="display:none"></div>
       <div class="track-grid" id="track-grid"></div>
       <div class="load-more-wrap" id="load-more-wrap" style="display:none">
         <button class="btn-outline" onclick="loadMore()">Charger plus</button>
@@ -902,6 +994,19 @@
     <button class="artist-filter-btn" data-filter="other"   onclick="setSimilarFilter('other')">Autres</button>
   </div>
   <div id="similar-list"></div>
+</div>
+
+<!-- ── Artist Panel ───────────────────────────────────────────────────── -->
+<div id="artist-panel">
+  <div class="artist-panel-header">
+    <div class="artist-panel-avatar" id="artist-panel-avatar">🎤</div>
+    <div style="flex:1;overflow:hidden">
+      <div class="artist-panel-name" id="artist-panel-name"></div>
+      <div class="artist-panel-count" id="artist-panel-count"></div>
+    </div>
+    <button class="artist-panel-close" onclick="closeArtistPanel()">✕</button>
+  </div>
+  <div id="artist-track-list"></div>
 </div>
 
 <!-- ── Chat Festival Panel ────────────────────────────────────────────── -->
@@ -1187,6 +1292,7 @@ const state = {
   total: 0,
   mode: 'home',      // 'home' | 'search' | 'reco' | 'history' | 'likes' | 'playlist'
   query: '',
+  searchSort: 'relevance',  // 'relevance' | 'popularity'
   playlistId: null,
   isPlaying: false,
   currentTrack: null,
@@ -1711,6 +1817,9 @@ async function showHome() {
   document.getElementById('page-title').textContent    = 'Accueil';
   document.getElementById('section-title').textContent = 'Catalogue';
   document.getElementById('search-input').value        = '';
+  document.getElementById('artist-row').style.display  = 'none';
+  document.getElementById('sort-toggle').style.display = 'none';
+  closeArtistPanel();
   await loadPage(0, false);
 }
 
@@ -1764,23 +1873,94 @@ async function loadMore() {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Artist panel
+══════════════════════════════════════════════════════════════ */
+async function openArtistPanel(artistName, trackCount) {
+  const panel = document.getElementById('artist-panel');
+  const list  = document.getElementById('artist-track-list');
+  document.getElementById('artist-panel-name').textContent  = artistName;
+  document.getElementById('artist-panel-count').textContent = `${trackCount} titres`;
+  document.getElementById('artist-panel-avatar').textContent = artistName.charAt(0).toUpperCase();
+
+  list.innerHTML = '<div class="spinner" style="margin:40px auto;display:block"></div>';
+  panel.classList.add('open');
+
+  const tracks = await apiFetch(`/catalog/artist?artist=${encodeURIComponent(artistName)}`);
+  if (!tracks || !tracks.length) {
+    list.innerHTML = '<div style="padding:20px;color:var(--muted);text-align:center">Aucun titre trouvé.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  tracks.forEach((t, idx) => {
+    const item = document.createElement('div');
+    item.className = 'artist-track-item';
+    item.innerHTML = `
+      <span class="artist-track-num">${idx + 1}</span>
+      <span class="artist-track-title">${t.title}</span>`;
+    item.onclick = () => { selectTrack(t.id, t.title, artistName); };
+    list.appendChild(item);
+  });
+}
+
+function closeArtistPanel() {
+  document.getElementById('artist-panel').classList.remove('open');
+}
+
+function renderArtistCards(artists) {
+  const row = document.getElementById('artist-row');
+  if (!artists || !artists.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  row.innerHTML = '';
+  artists.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'artist-card';
+    card.innerHTML = `
+      <div class="artist-avatar">${a.artist.charAt(0).toUpperCase()}</div>
+      <div class="artist-info-wrap">
+        <div class="artist-info-name">${a.artist}</div>
+        <div class="artist-info-count">${a.track_count} titre${a.track_count > 1 ? 's' : ''}</div>
+      </div>`;
+    card.onclick = () => openArtistPanel(a.artist, a.track_count);
+    row.appendChild(card);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
    Search
 ══════════════════════════════════════════════════════════════ */
-async function performSearch(q) {
+async function performSearch(q, sort) {
   if (!q.trim()) { showHome(); return; }
+  sort = sort || state.searchSort || 'relevance';
   state.mode  = 'search';
   state.query = q;
+  state.searchSort = sort;
   setActiveNav('nav-search');
   document.getElementById('page-title').textContent    = 'Recherche';
   document.getElementById('section-title').textContent = `Résultats pour "${q}"`;
 
   const grid = document.getElementById('track-grid');
   grid.innerHTML = '<div class="spinner" style="grid-column:1/-1"></div>';
+  document.getElementById('artist-row').style.display = 'none';
   document.getElementById('load-more-wrap').style.display = 'none';
+  document.getElementById('sort-toggle').style.display = 'flex';
+  document.getElementById('sort-btn-relevance').classList.toggle('active', sort === 'relevance');
+  document.getElementById('sort-btn-popularity').classList.toggle('active', sort === 'popularity');
 
-  const data = await apiFetch(`/catalog/search?q=${encodeURIComponent(q)}&limit=48`);
+  const [data, artists] = await Promise.all([
+    apiFetch(`/catalog/search?q=${encodeURIComponent(q)}&limit=100&sort=${sort}`),
+    apiFetch(`/catalog/artists?q=${encodeURIComponent(q)}`),
+  ]);
+
+  renderArtistCards(artists || []);
   document.getElementById('section-count').textContent = data ? `${data.length} résultats` : '';
   renderTracks(data || []);
+}
+
+function setSearchSort(sort) {
+  if (state.mode === 'search' && state.query) {
+    performSearch(state.query, sort);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════

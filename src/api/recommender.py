@@ -168,6 +168,13 @@ class RecommendationService:
             })
         return results
 
+    def get_popularity_scores(self):
+        """Retourne un array 1D : popularity[track_id] = somme des écoutes pondérées."""
+        import numpy as np
+        if not self.is_loaded:
+            return None
+        return np.asarray(self.user_item_matrix.sum(axis=0)).ravel()
+
     async def get_stats(self) -> dict:
         self._ensure_loaded()
         return {

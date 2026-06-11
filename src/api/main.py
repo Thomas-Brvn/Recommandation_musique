@@ -324,6 +324,9 @@ async def reload_model(background_tasks: BackgroundTasks):
     async def _do_reload():
         try:
             await _load_model()
+            pop = await asyncio.to_thread(service.get_popularity_scores)
+            if pop is not None:
+                catalog.set_popularity(pop)
             _reload_state["status"] = "done"
         except Exception as e:
             _reload_state["status"] = "error"
@@ -377,16 +380,38 @@ async def list_tracks(
     )
 
 
-@app.get("/catalog/search", response_model=List[TrackItem], tags=["Catalog"])
+@app.get("/catalog/search", tags=["Catalog"])
 async def search_tracks(
     q: str = Query(..., min_length=1, description="Texte à rechercher"),
-    limit: int = Query(default=24, ge=1, le=100),
+    limit: int = Query(default=100, ge=1, le=200),
+    sort: str = Query(default="relevance", description="Tri: relevance | popularity"),
 ):
     """Recherche des tracks par artiste ou titre."""
     if not catalog.is_loaded:
         raise HTTPException(status_code=503, detail="Catalogue non chargé")
-    results = catalog.search(q, limit)
-    return [TrackItem(**t) for t in results]
+    results = catalog.search(q, limit, sort=sort)
+    return results
+
+
+@app.get("/catalog/artist", response_model=List[TrackItem], tags=["Catalog"])
+async def artist_tracks(
+    artist: str = Query(..., min_length=1, description="Nom de l'artiste"),
+):
+    """Retourne tous les tracks d'un artiste (exact match normalisé)."""
+    if not catalog.is_loaded:
+        raise HTTPException(status_code=503, detail="Catalogue non chargé")
+    tracks = catalog.get_artist_tracks(artist)
+    return [TrackItem(**t) for t in tracks]
+
+
+@app.get("/catalog/artists", tags=["Catalog"])
+async def search_artists(
+    q: str = Query(..., min_length=1, description="Nom d'artiste à rechercher"),
+):
+    """Retourne les artistes correspondant à la query avec leur nombre de titres."""
+    if not catalog.is_loaded:
+        raise HTTPException(status_code=503, detail="Catalogue non chargé")
+    return catalog.find_matching_artists(q, limit=5)
 
 
 @app.get("/catalog/cover", tags=["Catalog"])

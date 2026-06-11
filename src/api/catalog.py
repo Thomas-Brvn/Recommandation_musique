@@ -7,6 +7,8 @@ import json
 import unicodedata
 from typing import List, Optional
 
+import numpy as np
+
 from google.cloud import storage
 from rapidfuzz import fuzz, process
 
@@ -22,6 +24,7 @@ class CatalogService:
     def __init__(self):
         self.tracks: List[dict] = []
         self._artist_index: dict[str, List[int]] = {}  # artist_norm → [track indices]
+        self._popularity: Optional[np.ndarray] = None  # popularity[track_id]
         self.is_loaded: bool = False
 
     @classmethod
@@ -73,7 +76,7 @@ class CatalogService:
             self._artist_index.setdefault(key, []).append(len(self.tracks) - 1)
         self.is_loaded = True
 
-    def search(self, query: str, limit: int = 48) -> List[dict]:
+    def search(self, query: str, limit: int = 48, sort: str = "relevance") -> List[dict]:
         if not query.strip():
             return []
 
@@ -115,14 +118,52 @@ class CatalogService:
                     if idx not in results:
                         results[idx] = score * 0.8
 
-        # Tri : score desc, puis artiste alphabétique
-        sorted_indices = sorted(results, key=lambda i: (-results[i], self.tracks[i]["_artist_norm"]))
+        if sort == "popularity":
+            sorted_indices = sorted(results, key=lambda i: -self._pop(self.tracks[i]["id"]))
+        else:
+            sorted_indices = sorted(results, key=lambda i: (-results[i], self.tracks[i]["_artist_norm"]))
 
         out = []
         for i in sorted_indices[:limit]:
             t = self.tracks[i]
-            out.append({k: v for k, v in t.items() if not k.startswith("_")})
+            row = {k: v for k, v in t.items() if not k.startswith("_")}
+            row["popularity"] = self._pop(t["id"])
+            out.append(row)
         return out
+
+    def set_popularity(self, scores: np.ndarray):
+        """Injecte les scores de popularité (appelé après chargement du modèle)."""
+        self._popularity = scores
+        print(f"Popularité injectée: {len(scores):,} tracks")
+
+    def _pop(self, track_id: int) -> float:
+        if self._popularity is None or track_id >= len(self._popularity):
+            return 0.0
+        return float(self._popularity[track_id])
+
+    def get_artist_tracks(self, artist: str) -> List[dict]:
+        """Retourne tous les tracks d'un artiste (matching exact normalisé)."""
+        artist_norm = _normalize(artist)
+        indices = self._artist_index.get(artist_norm, [])
+        out = []
+        for i in indices:
+            t = self.tracks[i]
+            out.append({k: v for k, v in t.items() if not k.startswith("_")})
+        return sorted(out, key=lambda t: t["title"])
+
+    def find_matching_artists(self, query: str, limit: int = 5) -> List[dict]:
+        """Retourne les artistes dont le nom normalisé contient la query."""
+        q = _normalize(query)
+        matches = []
+        for artist_norm, indices in self._artist_index.items():
+            if q in artist_norm or artist_norm in q:
+                artist_name = self.tracks[indices[0]]["artist"]
+                matches.append({
+                    "artist": artist_name,
+                    "track_count": len(indices),
+                })
+        matches.sort(key=lambda a: (not _normalize(a["artist"]).startswith(q), a["artist"]))
+        return matches[:limit]
 
     def get_page(self, page: int = 0, size: int = 48) -> List[dict]:
         start = page * size
