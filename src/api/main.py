@@ -537,7 +537,7 @@ async def festival_chat(request: FestivalChatRequest):
     history = _festival_sessions.get(session_id, [])
 
     try:
-        raw = await asyncio.to_thread(_festival_ask, request.question, history)
+        raw = await _festival_ask(request.question, history)
         # Gemini peut retourner une liste de blocs [{type, text}] ou une string
         if isinstance(raw, list):
             # Ne garder que les blocs de type "text" (ignorer "thinking", "executable_code", etc.)

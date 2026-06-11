@@ -2,6 +2,7 @@ Metadata-Version: 2.4
 Name: recommandation-musique
 Version: 0.1.0
 Requires-Python: >=3.10
+License-File: LICENSE
 Requires-Dist: jupyter
 Requires-Dist: requests>=2.28.0
 Requires-Dist: python-dotenv>=1.2.1
@@ -40,3 +41,4 @@ Requires-Dist: apache-airflow>=2.5.0; extra == "airflow"
 Requires-Dist: apache-airflow-providers-amazon>=8.0.0; extra == "airflow"
 Provides-Extra: spark
 Requires-Dist: pyspark>=3.3.0; extra == "spark"
+Dynamic: license-file
