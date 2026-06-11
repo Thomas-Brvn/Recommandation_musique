@@ -2,6 +2,7 @@
 FastAPI - Agent RAG Festivals 2026
 """
 
+import asyncio
 import logging
 import os
 import uuid
@@ -53,7 +54,7 @@ def _auto_index() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    _auto_index()
+    await asyncio.to_thread(_auto_index)
     yield
 
 
@@ -99,22 +100,21 @@ class Message(BaseModel):
 # ============================================================================
 
 @app.get("/health")
-def health():
+async def health():
     return {"status": "ok"}
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
 
     history = _sessions.get(session_id, [])
 
     try:
-        answer = ask(question=request.question, chat_history=history)
+        answer = await ask(question=request.question, chat_history=history)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    # Mettre à jour l'historique (format LangChain : tuples human/ai)
     history.append(("human", request.question))
     history.append(("ai", answer))
     _sessions[session_id] = history
@@ -123,7 +123,7 @@ def chat(request: ChatRequest):
 
 
 @app.get("/sessions/{session_id}/history", response_model=list[Message])
-def get_history(session_id: str):
+async def get_history(session_id: str):
     history = _sessions.get(session_id)
     if history is None:
         raise HTTPException(status_code=404, detail="Session introuvable")
@@ -131,6 +131,6 @@ def get_history(session_id: str):
 
 
 @app.delete("/sessions/{session_id}")
-def delete_session(session_id: str):
+async def delete_session(session_id: str):
     _sessions.pop(session_id, None)
     return {"deleted": session_id}

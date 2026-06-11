@@ -59,27 +59,21 @@ agent_executor = AgentExecutor(
 )
 
 
-def ask(question: str, chat_history: list = None) -> str:
-    """
-    Pose une question à l'agent.
-
-    Args:
-        question: La question de l'utilisateur
-        chat_history: Historique de conversation (optionnel)
-
-    Returns:
-        La réponse de l'agent
-    """
-    response = agent_executor.invoke({
+async def ask(question: str, chat_history: list = None) -> str:
+    response = await agent_executor.ainvoke({
         "input": question,
         "chat_history": chat_history or [],
     })
-
     return response.get("output", "Désolé, je n'ai pas pu générer une réponse.")
 
 if __name__ == "__main__":
-    while True:
-        question = input("Question (q pour quitter): ")
-        if question.lower() == "q":
-            break
-        print(ask(question))
+    import asyncio
+
+    async def _main():
+        while True:
+            question = input("Question (q pour quitter): ")
+            if question.lower() == "q":
+                break
+            print(await ask(question))
+
+    asyncio.run(_main())
