@@ -19,10 +19,10 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-from .catalog import CatalogService
-from .cover_service import get_cover_url, get_track_info
-from .library import LibraryService
-from .recommender import RecommendationService
+from .catalog import CatalogService  # noqa: E402
+from .cover_service import get_track_info  # noqa: E402
+from .library import LibraryService  # noqa: E402
+from .recommender import RecommendationService  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Import de l'agent festival (src/app/agent/)
