@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tableau de bord — Recommandation Musicale</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #7c6ff7;
+      --accent2: #4fc3f7;
+      --green: #4caf82;
+      --orange: #f4a261;
+      --red: #e05c6e;
+      --text: #e2e6f3;
+      --muted: #7a82a0;
+      --leo: #4fc3f7;
+      --thomas: #f4a261;
+      --alphonse: #a78bfa;
+      --shared: #4caf82;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 28px 40px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header-left h1 { font-size: 22px; font-weight: 700; color: var(--text); }
+    .header-left p { color: var(--muted); margin-top: 2px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .badge .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── Layout ── */
+    main { padding: 32px 40px; display: grid; gap: 28px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── KPI cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .kpi-card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .kpi-card .value { font-size: 32px; font-weight: 700; margin: 6px 0 4px; }
+    .kpi-card .sub { font-size: 12px; color: var(--muted); }
+    .kpi-card .bar {
+      height: 4px; border-radius: 2px;
+      background: var(--surface2);
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .kpi-card .bar-fill {
+      height: 100%; border-radius: 2px;
+      background: var(--accent);
+      transition: width .8s ease;
+    }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 16px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* ── Gantt ── */
+    .gantt-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      overflow-x: auto;
+    }
+    .gantt-header {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 0;
+      margin-bottom: 8px;
+    }
+    .gantt-months {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+    .gantt-month {
+      flex: 1;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      position: relative;
+    }
+    .gantt-month::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 1px;
+      background: var(--border);
+    }
+
+    .gantt-rows { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+    .gantt-group-label {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      align-items: center;
+      margin-top: 10px;
+      margin-bottom: 2px;
+    }
+    .gantt-group-label .member {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 4px 0;
+    }
+    .gantt-row {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      align-items: center;
+      min-height: 34px;
+    }
+    .gantt-row:hover .gantt-area { filter: brightness(1.1); }
+    .gantt-task-label {
+      font-size: 12px;
+      color: var(--muted);
+      padding-right: 16px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .gantt-area {
+      position: relative;
+      height: 26px;
+    }
+    .gantt-bar {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 22px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      white-space: nowrap;
+      overflow: hidden;
+      cursor: default;
+      transition: filter .15s;
+    }
+    .gantt-bar:hover { filter: brightness(1.15); }
+    .gantt-bar.done { opacity: 0.55; }
+    .gantt-bar.done::after {
+      content: '✓';
+      margin-left: 4px;
+      font-size: 10px;
+    }
+    .gantt-today {
+      position: absolute;
+      top: -8px;
+      bottom: -8px;
+      width: 2px;
+      background: var(--red);
+      z-index: 10;
+      pointer-events: none;
+    }
+    .gantt-today::after {
+      content: 'Auj.';
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: var(--red);
+      white-space: nowrap;
+    }
+    .gantt-grid-lines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .gantt-grid-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--border);
+      opacity: 0.5;
+    }
+
+    /* ── Bottom charts grid ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .chart-card canvas { max-height: 220px; }
+
+    /* ── Status table ── */
+    .status-table { width: 100%; border-collapse: collapse; }
+    .status-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .status-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .status-table tr:last-child td { border-bottom: none; }
+    .chip {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .chip.done { background: rgba(76,175,130,.15); color: var(--green); }
+    .chip.progress { background: rgba(124,111,247,.15); color: var(--accent); }
+    .chip.todo { background: rgba(122,130,160,.1); color: var(--muted); }
+    .avatar {
+      display: inline-block;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 22px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .av-leo { background: rgba(79,195,247,.2); color: var(--leo); }
+    .av-thomas { background: rgba(244,162,97,.2); color: var(--thomas); }
+    .av-alphonse { background: rgba(167,139,250,.2); color: var(--alphonse); }
+    .av-shared { background: rgba(76,175,130,.2); color: var(--shared); }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 11px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Système de Recommandation Musicale</h1>
+    <p>Projet PE2 · Alphonse · Thomas · Léo · Janvier – Juin 2026</p>
+  </div>
+  <span class="badge"><span class="dot"></span>En cours</span>
+</header>
+
+<main>
+
+  <!-- KPIs -->
+  <div>
+    <div class="section-title">Indicateurs clés</div>
+    <div class="kpi-grid" id="kpiGrid"></div>
+  </div>
+
+  <!-- Gantt -->
+  <div class="gantt-wrap">
+    <div class="section-title">Gantt du projet</div>
+    <div class="gantt-header">
+      <div></div>
+      <div class="gantt-months" id="ganttMonths"></div>
+    </div>
+    <div class="gantt-rows" id="ganttRows"></div>
+  </div>
+
+  <!-- Charts + Status -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="section-title">Charge par membre</div>
+      <canvas id="chartLoad"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="section-title">Avancement global</div>
+      <canvas id="chartProgress"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="section-title">Statut des tâches</div>
+      <canvas id="chartStatus"></canvas>
+    </div>
+  </div>
+
+  <!-- Task table -->
+  <div class="chart-card">
+    <div class="section-title">Détail des tâches</div>
+    <table class="status-table" id="taskTable"></table>
+  </div>
+
+</main>
+
+<footer>Généré le <span id="genDate"></span> · Projet PE2 M2</footer>
+
+<script>
+// ─── Data ──────────────────────────────────────────────────────────────────
+
+const PROJECT_START = new Date('2026-01-05');
+const PROJECT_END   = new Date('2026-06-26');
+const TODAY         = new Date('2026-06-12');
+
+// owner: 'leo' | 'thomas' | 'alphonse' | 'shared'
+// status: 'done' | 'progress' | 'todo'
+const TASKS = [
+  // Léo — Architecture
+  { label: 'Infra AWS (S3, EC2, IAM)',        owner: 'leo',      start: '2026-01-05', end: '2026-01-23', status: 'done' },
+  { label: 'Config Pinecone & embeddings',    owner: 'leo',      start: '2026-01-19', end: '2026-02-06', status: 'done' },
+  { label: 'Pipeline scraping → S3',          owner: 'leo',      start: '2026-02-02', end: '2026-02-20', status: 'done' },
+  { label: 'CI/CD & environnements',          owner: 'leo',      start: '2026-02-16', end: '2026-03-06', status: 'done' },
+
+  // Thomas — Modèle ALS
+  { label: 'Collecte données ListenBrainz',   owner: 'thomas',   start: '2026-01-12', end: '2026-02-13', status: 'done' },
+  { label: 'Parsing & nettoyage données',     owner: 'thomas',   start: '2026-02-09', end: '2026-03-06', status: 'done' },
+  { label: 'Construction matrice user-item',  owner: 'thomas',   start: '2026-03-02', end: '2026-03-27', status: 'done' },
+  { label: 'Entraînement modèle ALS',         owner: 'thomas',   start: '2026-03-23', end: '2026-04-17', status: 'done' },
+  { label: 'Évaluation & tuning',             owner: 'thomas',   start: '2026-04-13', end: '2026-05-01', status: 'done' },
+
+  // Alphonse — Agent IA
+  { label: 'Scraping festivals offi.fr',      owner: 'alphonse', start: '2026-02-09', end: '2026-02-27', status: 'done' },
+  { label: 'Vectorisation Pinecone',          owner: 'alphonse', start: '2026-02-23', end: '2026-03-13', status: 'done' },
+  { label: 'Agent LangChain + Gemini',        owner: 'alphonse', start: '2026-03-09', end: '2026-04-10', status: 'done' },
+  { label: 'API FastAPI & intégration',       owner: 'alphonse', start: '2026-04-06', end: '2026-05-08', status: 'done' },
+
+  // Commun
+  { label: 'Intégration & tests end-to-end',  owner: 'shared',   start: '2026-05-04', end: '2026-05-29', status: 'done' },
+  { label: 'Corrections & polish',            owner: 'shared',   start: '2026-05-25', end: '2026-06-12', status: 'progress' },
+  { label: 'Rapport & présentation finale',   owner: 'shared',   start: '2026-06-08', end: '2026-06-26', status: 'progress' },
+];
+
+const COLORS = {
+  leo:      '#4fc3f7',
+  thomas:   '#f4a261',
+  alphonse: '#a78bfa',
+  shared:   '#4caf82',
+};
+const OWNER_LABELS = { leo: 'Léo', thomas: 'Thomas', alphonse: 'Alphonse', shared: 'Commun' };
+const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+function parseDate(s) { return new Date(s); }
+const totalMs = PROJECT_END - PROJECT_START;
+function pct(date) { return Math.max(0, Math.min(100, (parseDate(date) - PROJECT_START) / totalMs * 100)); }
+function pctSpan(s, e) { return pct(e) - pct(s); }
+function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
+
+// ─── KPIs ─────────────────────────────────────────────────────────────────
+
+const doneCount     = TASKS.filter(t => t.status === 'done').length;
+const progressCount = TASKS.filter(t => t.status === 'progress').length;
+const todoCount     = TASKS.filter(t => t.status === 'todo').length;
+const totalDays     = daysBetween(PROJECT_START, PROJECT_END);
+const elapsed       = daysBetween(PROJECT_START, TODAY);
+const remaining     = Math.max(0, daysBetween(TODAY, PROJECT_END));
+const progressPct   = Math.round(elapsed / totalDays * 100);
+const donePct       = Math.round(doneCount / TASKS.length * 100);
+
+const KPIS = [
+  { label: 'Avancement temps',   value: progressPct + '%', sub: `${elapsed}j / ${totalDays}j`, bar: progressPct, color: 'var(--accent2)' },
+  { label: 'Tâches terminées',   value: doneCount + ' / ' + TASKS.length, sub: `${donePct}% complétées`, bar: donePct, color: 'var(--green)' },
+  { label: 'En cours',           value: progressCount, sub: 'tâches actives', bar: null },
+  { label: 'Jours restants',     value: remaining, sub: 'avant la soutenance', bar: null },
+  { label: 'Membres',            value: 3, sub: 'Alphonse · Thomas · Léo', bar: null },
+  { label: 'Sprints',            value: 6, sub: 'sprints de 4 semaines', bar: null },
+];
+
+const kpiGrid = document.getElementById('kpiGrid');
+KPIS.forEach(k => {
+  kpiGrid.innerHTML += `
+    <div class="kpi-card">
+      <div class="label">${k.label}</div>
+      <div class="value" style="color:${k.color || 'var(--text)'}">${k.value}</div>
+      <div class="sub">${k.sub}</div>
+      ${k.bar != null ? `<div class="bar"><div class="bar-fill" style="width:${k.bar}%;background:${k.color || 'var(--accent)'}"></div></div>` : ''}
+    </div>`;
+});
+
+// ─── Gantt ────────────────────────────────────────────────────────────────
+
+// Month headers
+const ganttMonths = document.getElementById('ganttMonths');
+MONTHS.forEach(m => { ganttMonths.innerHTML += `<div class="gantt-month">${m}</div>`; });
+
+const ganttRows = document.getElementById('ganttRows');
+const todayPct  = Math.max(0, Math.min(100, (TODAY - PROJECT_START) / totalMs * 100));
+
+const groups = ['leo', 'thomas', 'alphonse', 'shared'];
+groups.forEach(owner => {
+  const tasks = TASKS.filter(t => t.owner === owner);
+  // group header
+  ganttRows.innerHTML += `
+    <div class="gantt-group-label">
+      <div class="member" style="color:${COLORS[owner]}">${OWNER_LABELS[owner]}</div>
+      <div></div>
+    </div>`;
+
+  tasks.forEach((t, i) => {
+    const left = pct(t.start).toFixed(2);
+    const width = pctSpan(t.start, t.end).toFixed(2);
+    // grid lines on first row
+    const gridLines = i === 0 ? MONTHS.map((_,mi) => {
+      const lp = (mi / 6 * 100).toFixed(2);
+      return `<div class="gantt-grid-line" style="left:${lp}%"></div>`;
+    }).join('') : '';
+
+    ganttRows.innerHTML += `
+      <div class="gantt-row">
+        <div class="gantt-task-label" title="${t.label}">${t.label}</div>
+        <div class="gantt-area">
+          ${i === 0 ? `<div class="gantt-grid-lines">${gridLines}</div>` : ''}
+          <div class="gantt-today" style="left:${todayPct.toFixed(2)}%"></div>
+          <div class="gantt-bar ${t.status === 'done' ? 'done' : ''}"
+               style="left:${left}%;width:${width}%;background:${COLORS[owner]}"
+               title="${t.label} · ${t.start} → ${t.end}">
+            ${parseFloat(width) > 6 ? t.label : ''}
+          </div>
+        </div>
+      </div>`;
+  });
+});
+
+// ─── Charts ───────────────────────────────────────────────────────────────
+
+const chartDefaults = {
+  plugins: { legend: { labels: { color: '#7a82a0', font: { size: 12 } } } },
+};
+
+// Charge par membre (nb tâches)
+const loadCounts = groups.map(o => TASKS.filter(t => t.owner === o).length);
+new Chart(document.getElementById('chartLoad'), {
+  type: 'bar',
+  data: {
+    labels: groups.map(o => OWNER_LABELS[o]),
+    datasets: [{
+      data: loadCounts,
+      backgroundColor: groups.map(o => COLORS[o] + 'cc'),
+      borderColor: groups.map(o => COLORS[o]),
+      borderWidth: 1,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    ...chartDefaults,
+    plugins: { ...chartDefaults.plugins, legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#7a82a0' }, grid: { color: '#2e3350' } },
+      y: { ticks: { color: '#7a82a0', stepSize: 1 }, grid: { color: '#2e3350' } },
+    },
+  }
+});
+
+// Avancement global (donut)
+const doneMs = TASKS.filter(t => t.status === 'done')
+  .reduce((acc, t) => acc + (parseDate(t.end) - parseDate(t.start)), 0);
+const progressMs = TASKS.filter(t => t.status === 'progress')
+  .reduce((acc, t) => acc + (parseDate(t.end) - parseDate(t.start)), 0);
+const todoMs = TASKS.filter(t => t.status === 'todo')
+  .reduce((acc, t) => acc + (parseDate(t.end) - parseDate(t.start)), 0);
+
+new Chart(document.getElementById('chartProgress'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Terminé', 'En cours', 'À faire'],
+    datasets: [{
+      data: [doneMs, progressMs, todoMs],
+      backgroundColor: ['#4caf8299', '#7c6ff799', '#2e3350'],
+      borderColor: ['#4caf82', '#7c6ff7', '#3e4570'],
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    ...chartDefaults,
+    cutout: '68%',
+    plugins: {
+      ...chartDefaults.plugins,
+      legend: { position: 'bottom', labels: { color: '#7a82a0', padding: 12 } },
+    }
+  }
+});
+
+// Statut par nombre de tâches
+new Chart(document.getElementById('chartStatus'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Terminées', 'En cours', 'À faire'],
+    datasets: [{
+      data: [doneCount, progressCount, todoCount],
+      backgroundColor: ['#4caf8299', '#7c6ff799', '#2e335099'],
+      borderColor: ['#4caf82', '#7c6ff7', '#3e4570'],
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    ...chartDefaults,
+    cutout: '68%',
+    plugins: {
+      ...chartDefaults.plugins,
+      legend: { position: 'bottom', labels: { color: '#7a82a0', padding: 12 } },
+    }
+  }
+});
+
+// ─── Task table ───────────────────────────────────────────────────────────
+
+const table = document.getElementById('taskTable');
+table.innerHTML = `
+  <thead>
+    <tr>
+      <th>Tâche</th>
+      <th>Responsable</th>
+      <th>Début</th>
+      <th>Fin</th>
+      <th>Durée</th>
+      <th>Statut</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${TASKS.map(t => {
+      const dur = daysBetween(parseDate(t.start), parseDate(t.end));
+      const statusLabel = { done: 'Terminé', progress: 'En cours', todo: 'À faire' }[t.status];
+      const av = `<span class="avatar av-${t.owner}">${OWNER_LABELS[t.owner][0]}</span>`;
+      return `<tr>
+        <td>${t.label}</td>
+        <td>${av} ${OWNER_LABELS[t.owner]}</td>
+        <td style="color:var(--muted)">${t.start}</td>
+        <td style="color:var(--muted)">${t.end}</td>
+        <td style="color:var(--muted)">${dur}j</td>
+        <td><span class="chip ${t.status}">${statusLabel}</span></td>
+      </tr>`;
+    }).join('')}
+  </tbody>`;
+
+// Footer date
+document.getElementById('genDate').textContent = TODAY.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+</script>
+</body>
+</html>
