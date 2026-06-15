@@ -323,11 +323,6 @@ GCS_MATRIX_KEY=processed/user_item_matrix.npz
 GCS_MAPPINGS_KEY=processed/mappings.json
 GCS_CATALOG_KEY=processed/track_dedup_map.json
 
-# ── AWS (données historiques brutes — optionnel si déjà sur GCS) ─────────────
-AWS_ACCESS_KEY_ID=AKIAXXXXXXXXXXXXX
-AWS_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-AWS_DEFAULT_REGION=eu-north-1
-
 # ── Ollama (agent festival) ───────────────────────────────────────────────────
 OLLAMA_MODEL=llama3.2:3b                # modèle Ollama à utiliser
 OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama
@@ -360,24 +355,22 @@ Le pipeline transforme ~120 Go de dumps bruts en un modèle de recommandation pr
 
 ### Étape 1 — Acquisition des données brutes
 
-Les dumps ListenBrainz (historiques d'écoutes) et MusicBrainz (métadonnées musicales) sont trop volumineux pour être téléchargés directement sur un poste de travail. Le script lance une instance EC2 AWS éphémère qui télécharge directement vers GCS, sans transiter par votre machine.
+Les dumps ListenBrainz (historiques d'écoutes) et MusicBrainz (métadonnées musicales) sont trop volumineux pour être téléchargés directement sur un poste de travail. Le script `download_to_gcs_via_gce.py` lance une instance GCE éphémère qui télécharge les dumps directement vers GCS, sans transiter par votre machine locale.
 
 ```bash
-# MusicBrainz uniquement (artistes, enregistrements, releases — ~20 Go)
-uv run python scripts/download_to_s3_via_ec2.py 1
+# Téléchargement via une instance GCE temporaire → GCS
+uv run python scripts/download_to_gcs_via_gce.py
 
-# ListenBrainz uniquement (historiques d'écoutes — ~120 Go)
-uv run python scripts/download_to_s3_via_ec2.py 2
-
-# Les deux en parallèle
-uv run python scripts/download_to_s3_via_ec2.py 3
+# Ou téléchargement direct (si votre bande passante le permet)
+uv run python scripts/download_listenbrainz.py
+uv run python scripts/download_musicbrainz.py
 ```
 
-**Ce que fait le script :**
-1. Crée une instance EC2 t3.small temporaire dans le compte AWS configuré
+**Ce que fait le script `download_to_gcs_via_gce.py` :**
+1. Crée une instance GCE e2-medium temporaire dans le projet GCP configuré
 2. Y exécute via SSH les scripts de téléchargement
-3. Les données sont uploadées directement de EC2 vers GCS (transfert rapide inter-cloud)
-4. L'instance EC2 est automatiquement terminée à la fin
+3. Les données sont uploadées directement de la VM vers GCS (transfert rapide intra-GCP)
+4. L'instance GCE est automatiquement terminée à la fin
 
 **Données produites :**
 - `gs://brainz-raw-listenbrainz/` — Dumps Parquet/tar.zst des historiques d'écoute, partitionnés par date
@@ -1078,8 +1071,7 @@ Recommandation_musique/
 │       └── index.html                  # Frontend JavaScript (player + agent festival)
 │
 ├── scripts/
-│   ├── download_to_s3_via_ec2.py       # Lance EC2 AWS pour télécharger dumps → GCS
-│   ├── download_to_gcs_via_gce.py      # Alternative : téléchargement via GCE
+│   ├── download_to_gcs_via_gce.py      # Lance une GCE temporaire pour télécharger dumps → GCS
 │   ├── download_listenbrainz.py        # Téléchargement direct ListenBrainz
 │   ├── download_musicbrainz.py         # Téléchargement direct MusicBrainz
 │   ├── parse_listens.py                # Parsing des dumps bruts (zstandard → JSON structuré)
@@ -1100,13 +1092,12 @@ Recommandation_musique/
 │   └── dashboard.html                  # Template HTML Jinja2 du dashboard
 │
 ├── config/
-│   ├── download_instance.json          # Config EC2/GCE pour le téléchargement
+│   ├── download_instance.json          # Config GCE pour le téléchargement (type de machine, zone)
 │   ├── gcp_config.json                 # Config GCP (projet, région, buckets)
 │   └── load_env.py                     # Chargement des variables d'environnement
 │
 ├── docs/
-│   ├── GUIDE_AWS.md                    # Guide configuration AWS
-│   ├── GUIDE_EC2.md                    # Guide utilisation EC2
+│   ├── GUIDE_EC2.md                    # Guide utilisation GCE pour le téléchargement des données
 │   ├── ORGANIZATION.md                 # Organisation du projet
 │   ├── algorithmes_recommandation.md   # Explication détaillée des algorithmes
 │   └── plan_implementation.md          # Plan d'implémentation initial
