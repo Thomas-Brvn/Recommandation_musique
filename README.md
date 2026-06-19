@@ -11,6 +11,7 @@ Un **dashboard de monitoring** Cloud Run permet de suivre l'état du pipeline de
 
 ## Table des matières
 
+- [Gestion de projet](#gestion-de-projet)
 - [Architecture globale](#architecture-globale)
 - [Algorithme ALS — comment ça marche](#algorithme-als--comment-ça-marche)
 - [Agent RAG — comment ça marche](#agent-rag--comment-ça-marche)
@@ -28,6 +29,48 @@ Un **dashboard de monitoring** Cloud Run permet de suivre l'état du pipeline de
 - [Docker et déploiement local](#docker-et-déploiement-local)
 - [Structure du projet](#structure-du-projet)
 - [Coûts GCP estimés](#coûts-gcp-estimés)
+
+---
+
+## Gestion de projet
+
+Le projet a été mené par une équipe de 3 personnes sur **6 mois** (janvier – juin 2026), organisée en **6 sprints de 4 semaines**. Le suivi d'avancement est centralisé dans un **tableau de bord de gestion** (Gantt + KPIs) autonome : `gestion_projet/dashboard.html`.
+
+```bash
+# Ouvrir le tableau de bord de gestion de projet (aucune dépendance)
+open gestion_projet/dashboard.html        # macOS
+xdg-open gestion_projet/dashboard.html    # Linux
+```
+
+Ce fichier HTML statique (Chart.js via CDN) affiche un diagramme de Gantt par membre, l'avancement temporel, le nombre de tâches terminées/en cours, et les jours restants avant la soutenance.
+
+### Équipe et répartition des responsabilités
+
+Le travail a été découpé par domaine technique, chaque membre étant responsable d'un pan de l'architecture, avec une phase commune d'intégration en fin de projet.
+
+| Membre | Domaine | Responsabilités principales |
+|---|---|---|
+| **Léo** | Infrastructure & DevOps | Infra cloud (buckets, VM, IAM), config vector store & embeddings, pipeline de scraping, CI/CD et environnements |
+| **Thomas** | Modèle de recommandation | Collecte des données ListenBrainz, parsing & nettoyage, construction de la matrice user-item, entraînement et évaluation du modèle ALS |
+| **Alphonse** | Agent IA conversationnel | Scraping des festivals (offi.fr), vectorisation, agent LangChain, API FastAPI et intégration |
+| **Commun** | Finalisation | Intégration & tests end-to-end, corrections & polish, rapport et présentation finale |
+
+### Méthodologie
+
+- **Cycle en sprints** : 6 sprints de 4 semaines, chacun clôturé par une revue d'avancement.
+- **Travail en parallèle** : les trois chantiers (infra, modèle, agent) ont avancé simultanément grâce à des interfaces claires entre composants.
+- **Intégration continue** : chaque push déclenche le lint et les vérifications d'imports (`ci.yml`), garantissant un `main` toujours déployable.
+- **Phase d'intégration finale commune** : assemblage des trois briques, tests end-to-end, puis rédaction du rapport et préparation de la soutenance.
+
+### Planning macro
+
+```
+Sprint 1-2 (jan–fév)  Infra & collecte des données        ── Léo, Thomas
+Sprint 2-3 (fév–mar)  Pipeline, scraping, vectorisation   ── Léo, Alphonse
+Sprint 3-4 (mar–avr)  Modèle ALS & agent LangChain        ── Thomas, Alphonse
+Sprint 4-5 (avr–mai)  API, évaluation, intégration        ── Tous
+Sprint 6   (mai–juin) Polish, rapport & soutenance        ── Commun
+```
 
 ---
 
