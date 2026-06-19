@@ -80,7 +80,7 @@ Sprint 6   (mai–juin) Polish, rapport & soutenance        ── Commun
 ┌──────────────────────────────────────────────────────────────────────┐
 │                          GitHub Actions                               │
 │   ci.yml (lint)  │  deploy.yml (Cloud Run)  │  terraform.yml (infra) │
-│                  │  festival_update.yml (hebdo scraping)             │
+│                  │  festival-update.yml (hebdo scraping)             │
 └────────┬─────────────────────┬──────────────────┬────────────────────┘
          │                     │                  │
          ▼                     ▼                  ▼
@@ -780,7 +780,7 @@ Question utilisateur
 
 ### Indexation et mise à jour
 
-L'index ChromaDB est mis à jour automatiquement chaque lundi via le workflow GitHub Actions `festival_update.yml` :
+L'index ChromaDB est mis à jour automatiquement chaque lundi via le workflow GitHub Actions `festival-update.yml` :
 
 1. Scraping de `offi.fr` pour les données les plus récentes
 2. Validation du JSON produit (abandon si vide)
@@ -1014,7 +1014,7 @@ Déclenché sur push/PR vers `main` si `infra/` est modifié.
 - **Sur PR** : `terraform plan` avec le résultat posté en commentaire sur la PR (pour review humaine avant merge)
 - **Sur push main** : `terraform apply` automatique
 
-### `festival_update.yml` — Mise à jour hebdomadaire des festivals
+### `festival-update.yml` — Mise à jour hebdomadaire des festivals
 
 Planifié tous les **lundis à 6h UTC** + déclenchement manuel via `workflow_dispatch`.
 
@@ -1160,7 +1160,7 @@ Recommandation_musique/
     ├── ci.yml                          # Lint + import checks (chaque push/PR)
     ├── deploy.yml                      # Build Docker + déploiement Cloud Run (push main)
     ├── terraform.yml                   # Plan/Apply Terraform (si infra/ modifié)
-    └── festival_update.yml             # Scraping hebdomadaire festivals (lundi 6h UTC)
+    └── festival-update.yml             # Scraping hebdomadaire festivals (lundi 6h UTC)
 ```
 
 ---
